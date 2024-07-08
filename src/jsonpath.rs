@@ -1,6 +1,5 @@
 use crate::error::Result;
 use jsonpath_lib as jsonpath;
-pub use reqwest::Response;
 
 use serde::de::DeserializeOwned;
 
