@@ -1,6 +1,6 @@
 ## reqwest-scraper - Scraping integration with reqwest
 
-Expand reqwest functionality to support multiple crawling methods.
+Expand [reqwest](https://github.com/seanmonstar/reqwest) functionality to support multiple crawling methods.
 
 ### Features
 
@@ -78,6 +78,7 @@ TODO
 
 ## Related Projects
 
+* [reqwest](https://github.com/seanmonstar/reqwest)
 * [scraper](https://github.com/causal-agent/scraper)
 * [Skyscraper](https://github.com/James-LG/Skyscraper)
 * [jsonpath_lib](https://github.com/freestrings/jsonpath)
