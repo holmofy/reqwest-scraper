@@ -1,6 +1,5 @@
 use crate::error::Result;
 use itertools::Itertools;
-pub use reqwest::Response;
 
 use scraper::ElementRef;
 
