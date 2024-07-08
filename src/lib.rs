@@ -1,11 +1,17 @@
+#[cfg(feature = "css_selector")]
 pub mod css_selector;
 pub mod error;
+#[cfg(feature = "jsonpath")]
 pub mod jsonpath;
+#[cfg(feature = "xpath")]
 pub mod xpath;
 
+#[cfg(feature = "css_selector")]
 use crate::css_selector::Html;
 use crate::error::Result;
+#[cfg(feature = "jsonpath")]
 use crate::jsonpath::Json;
+#[cfg(feature = "xpath")]
 use crate::xpath::XHtml;
 use async_trait::async_trait;
 use error::ScraperError;
@@ -15,17 +21,21 @@ pub use reqwest::Response;
 #[async_trait]
 pub trait ScraperResponse {
     /// Use jsonpath to select the response body
+    #[cfg(feature = "jsonpath")]
     async fn jsonpath(self) -> Result<Json>;
 
     /// Use CSS selector to select the response body
+    #[cfg(feature = "css_selector")]
     async fn css_selector(self) -> Result<Html>;
 
     /// Use XPath to select the response body
+    #[cfg(feature = "xpath")]
     async fn xpath(self) -> Result<XHtml>;
 }
 
 #[async_trait]
 impl ScraperResponse for Response {
+    #[cfg(feature = "jsonpath")]
     async fn jsonpath(self) -> Result<Json> {
         if self.status().is_success() {
             let json_value = self.json().await?;
@@ -37,6 +47,7 @@ impl ScraperResponse for Response {
         }
     }
 
+    #[cfg(feature = "css_selector")]
     async fn css_selector(self) -> Result<Html> {
         if self.status().is_success() {
             let html_str = self.text().await?;
@@ -50,6 +61,7 @@ impl ScraperResponse for Response {
         }
     }
 
+    #[cfg(feature = "xpath")]
     async fn xpath(self) -> Result<XHtml> {
         if self.status().is_success() {
             let html_str = self.text().await?;
