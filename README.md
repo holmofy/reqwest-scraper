@@ -24,6 +24,8 @@ Expand reqwest functionality to support multiple crawling methods.
 <h3 id="jsonpath">JsonPath</h3>
 
 ```rust
+use reqwest_scraper::ScraperResponse;
+
 pub async fn request() -> Result<()> {
     let json = reqwest::Client::builder()
         .build()?
@@ -47,6 +49,8 @@ pub async fn request() -> Result<()> {
 <h3 id="css-selector">CSS selector</h3>
 
 ```rust
+use reqwest_scraper::ScraperResponse;
+
 async fn request() -> Result<()> {
     let html = reqwest::get("https://github.com/holmofy")
         .await?
