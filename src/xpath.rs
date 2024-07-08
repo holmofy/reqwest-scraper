@@ -7,9 +7,7 @@ use crate::error::Result;
 
 /// Html Response
 pub struct XHtml {
-    #[warn(dead_code)]
     pub(crate) value: HtmlDocument,
-    #[warn(dead_code)]
     pub(crate) xpath_tree: XpathItemTree,
 }
 
@@ -18,12 +16,10 @@ pub struct ResultSet<'tree> {
 }
 
 pub struct ResultItem<'tree, 'result> {
-    #[warn(dead_code)]
     item: &'result XpathItem<'tree>,
 }
 
 impl XHtml {
-    #[warn(dead_code)]
     fn select<'a>(&'a self, xpath: &str) -> Result<ResultSet<'a>> {
         let xpath = xpath::parse(xpath)?;
 
