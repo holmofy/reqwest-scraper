@@ -2,7 +2,6 @@
 
 [![crates.io](https://img.shields.io/crates/v/reqwest-scraper.svg)](https://crates.io/crates/reqwest-scraper)
 [![Documentation](https://docs.rs/reqwest-scraper/badge.svg)](https://docs.rs/reqwest-scraper)
-[![GPLv3 licensed](https://img.shields.io/crates/l/reqwest-scraper.svg)](./LICENSE-GPLv3)
 [![CI](https://github.com/holmofy/reqwest-scraper/workflows/Publish/badge.svg)](https://github.com/holmofy/reqwest-scraper/actions?query=workflow%3APublish)
 
 Expand [reqwest](https://github.com/seanmonstar/reqwest) functionality to support multiple crawling methods.
