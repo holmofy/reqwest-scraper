@@ -21,4 +21,4 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
     - name: Run Publish
-      run: cargo publish --verbose --token=${secrets.CARGO_TOKEN}
+      run: cargo publish --verbose --token=${{secrets.CARGO_TOKEN}}
