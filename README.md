@@ -28,6 +28,11 @@ Expand [reqwest](https://github.com/seanmonstar/reqwest) functionality to suppor
 
 <h3 id="jsonpath">JsonPath</h3>
 
+* `Json::select<T: DeserializeOwned>(&self, path: &str) -> Result<Vec<T>>`
+* `Json::select_as_str(&self, path: &str) -> Result<String>`
+
+[**example**](./examples/json.rs):
+
 ```rust
 use reqwest_scraper::ScraperResponse;
 
@@ -52,6 +57,22 @@ pub async fn request() -> Result<()> {
 ```
 
 <h3 id="css-selector">CSS selector</h3>
+
+* `Html::select(&self, selector: &str) -> Result<Selectable>`
+* `Selectable::iter() -> impl Iterator<SelectItem>`
+* `SelectItem::name() -> &str`
+* `SelectItem::id() -> Option<&str>`
+* `SelectItem::has_class(class: &str, case_sensitive: CaseSensitivity) -> bool`
+* `SelectItem::classes() -> Classes`
+* `SelectItem::attrs() -> Attrs`
+* `SelectItem::attr(attr: &str) -> Option<&str>`
+* `SelectItem::text() -> String`
+* `SelectItem::html() -> String`
+* `SelectItem::inner_html() -> String`
+* `SelectItem::children() -> impl Iterator<SelectItem>`
+* `SelectItem::find(selector: &str) -> Result<Selectable>`
+
+[**example**](./examples/html.rs):
 
 ```rust
 use reqwest_scraper::ScraperResponse;
