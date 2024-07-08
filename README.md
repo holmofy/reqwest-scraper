@@ -1,14 +1,6 @@
 ## reqwest-scraper - Scraping integration with reqwest
 
-* add dependency
-    ```toml
-    reqwest-scraper="0.1.0"
-    ```
-* use `ScraperResponse`
-    ```rust
-    use reqwest_scraper::ScraperResponse;
-    ```
-
+Expand reqwest functionality to support multiple crawling methods.
 
 ### Features
 
@@ -16,6 +8,18 @@
 * [x] Select elements in HTML using [CSS selector](#css-selector)
 * [ ] Evalute the value in HTML using [xpath expression](#xpath)
 * [ ] Derive macro extract
+
+### Start Guide
+
+* add dependency
+    ```toml
+    reqwest-scraper="0.1.0"
+    ```
+* use ScraperResponse
+    ```rust
+    use reqwest_scraper::ScraperResponse;
+    ```
+
 
 <h3 id="jsonpath">JsonPath</h3>
 
