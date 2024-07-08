@@ -1,9 +1,10 @@
 [package]
 name = "reqwest-scraper"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 description = "Scraping integration with reqwest"
 license-file = "LICENSE"
+repository = "https://github.com/holmofy/reqwest-scraper"
 
 [dependencies]
 async-trait = "0.1"
