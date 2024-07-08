@@ -13,6 +13,7 @@ Expand [reqwest](https://github.com/seanmonstar/reqwest) functionality to suppor
 
 * add dependency
     ```toml
+    reqwest = { version = "0.12", features = ["json"] }
     reqwest-scraper="0.1.0"
     ```
 * use ScraperResponse
