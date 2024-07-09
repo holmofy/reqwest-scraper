@@ -2,7 +2,7 @@
 name = "reqwest-scraper"
 version = "0.2.0"
 edition = "2021"
-description = "Scraping integration with reqwest"
+description = "Web scraping integration with reqwest"
 license-file = "LICENSE"
 repository = "https://github.com/holmofy/reqwest-scraper"
 

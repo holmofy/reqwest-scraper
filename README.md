@@ -1,16 +1,16 @@
-## reqwest-scraper - Scraping integration with reqwest
+## reqwest-scraper - Web scraping integration with reqwest
 
 [![crates.io](https://img.shields.io/crates/v/reqwest-scraper.svg)](https://crates.io/crates/reqwest-scraper)
 [![Documentation](https://docs.rs/reqwest-scraper/badge.svg)](https://docs.rs/reqwest-scraper)
 [![CI](https://github.com/holmofy/reqwest-scraper/workflows/Publish/badge.svg)](https://github.com/holmofy/reqwest-scraper/actions?query=workflow%3APublish)
 
-Expand [reqwest](https://github.com/seanmonstar/reqwest) functionality to support multiple crawling methods.
+Extends [reqwest](https://github.com/seanmonstar/reqwest) to support multiple web scraping methods.
 
 ### Features
 
-* [x] Use [JsonPath](#jsonpath) to select fields in json
-* [x] Select elements in HTML using [CSS selector](#css-selector)
-* [x] Evalute the value in HTML using [xpath expression](#xpath)
+* [x] Use [JsonPath](#jsonpath) to select fields in json response
+* [x] Select elements in HTML response using [CSS selector](#css-selector)
+* [x] Evalute the value in HTML response using [xpath expression](#xpath)
 * [ ] Derive macro extract
 
 ### Start Guide
