@@ -1,8 +1,4 @@
 use scraper::{Html, Selector};
-use skyscraper::{
-    html,
-    xpath::{self, XpathItemTree},
-};
 
 fn main() {
     let html = r#"
@@ -24,18 +20,4 @@ fn main() {
     for element in fragment.select(&selector) {
         println!("{}", element.text().collect::<Vec<_>>().join(""))
     }
-
-    let doc = html::parse(html).unwrap();
-    let tree = XpathItemTree::from(&doc);
-
-    let xpath = xpath::parse("//div").unwrap();
-
-    let set = xpath.apply(&tree).unwrap();
-
-    println!("{}", set.len());
-
-    let div = set.iter().next().unwrap();
-    let node = div.as_node().unwrap().as_tree_node().unwrap();
-
-    println!("{}", node.data.as_element_node().unwrap().get_attribute("id").unwrap());
 }

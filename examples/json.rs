@@ -1,4 +1,4 @@
-use reqwest_scraper::error::Result;
+use anyhow::Result;
 use reqwest_scraper::ScraperResponse;
 
 #[tokio::main]
@@ -16,10 +16,12 @@ pub async fn request() -> Result<()> {
         .jsonpath()
         .await?;
 
-    let total_count = json.select_as_str("$.total_count")?;
+    let total_count_str = json.select_as_str("$.total_count")?;
+    let total_count_int: i32 = json.select_one("$.total_count")?;
     let names: Vec<String> = json.select("$.items[*].full_name")?;
 
-    println!("{}", total_count);
+    println!("{}", total_count_str);
+    println!("{}", total_count_int);
     println!("{}", names.join("\t"));
 
     Ok(())
