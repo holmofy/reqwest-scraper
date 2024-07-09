@@ -1,4 +1,4 @@
-use reqwest_scraper::error::Result;
+use anyhow::Result;
 use reqwest_scraper::ScraperResponse;
 
 #[tokio::main]

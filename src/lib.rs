@@ -65,12 +65,8 @@ impl ScraperResponse for Response {
     async fn xpath(self) -> Result<XHtml> {
         if self.status().is_success() {
             let html_str = self.text().await?;
-            let html_value = skyscraper::html::parse(html_str.as_str())?;
-            let xpath_tree = skyscraper::xpath::XpathItemTree::from(&html_value);
-            Ok(XHtml {
-                value: html_value,
-                xpath_tree,
-            })
+            let package = sxd_document::parser::parse(html_str.as_str())?;
+            Ok(XHtml { value: package })
         } else {
             let status_code = self.status().as_u16();
             let response = self.text().await?;

@@ -28,8 +28,9 @@ Expand [reqwest](https://github.com/seanmonstar/reqwest) functionality to suppor
 
 <h3 id="jsonpath">JsonPath</h3>
 
-* `Json::select<T: DeserializeOwned>(&self, path: &str) -> Result<Vec<T>>`
-* `Json::select_as_str(&self, path: &str) -> Result<String>`
+* `Json::select<T: DeserializeOwned>(path: &str) -> Result<Vec<T>>`
+* `Json::select_one<T: DeserializeOwned>(path: &str) -> Result<T>`
+* `Json::select_as_str(path: &str) -> Result<String>`
 
 [**example**](./examples/json.rs):
 
@@ -58,7 +59,7 @@ pub async fn request() -> Result<()> {
 
 <h3 id="css-selector">CSS selector</h3>
 
-* `Html::select(&self, selector: &str) -> Result<Selectable>`
+* `Html::select(selector: &str) -> Result<Selectable>`
 * `Selectable::iter() -> impl Iterator<SelectItem>`
 * `SelectItem::name() -> &str`
 * `SelectItem::id() -> Option<&str>`
@@ -106,7 +107,7 @@ TODO
 
 * [reqwest](https://github.com/seanmonstar/reqwest)
 * [scraper](https://github.com/causal-agent/scraper)
-* [Skyscraper](https://github.com/James-LG/Skyscraper)
+* [nipper](https://github.com/importcjj/nipper)
 * [jsonpath_lib](https://github.com/freestrings/jsonpath)
 * [unhtml.rs](https://github.com/Hexilee/unhtml.rs)
-* [nipper](https://github.com/importcjj/nipper)
+* [xpath-scraper](https://github.com/Its-its/xpath-scraper)
