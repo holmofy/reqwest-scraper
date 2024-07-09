@@ -16,15 +16,15 @@ pub enum ScraperError {
 
     #[cfg(feature = "xpath")]
     #[error(transparent)]
-    HtmlParseError(#[from] sxd_document::parser::Error),
+    HtmlParseError(#[from] libxml::parser::XmlParseError),
 
-    #[cfg(feature = "xpath")]
-    #[error(transparent)]
-    XPathParseError(#[from] sxd_xpath::ParserError),
+    // #[cfg(feature = "xpath")]
+    // #[error(transparent)]
+    // XPathParseError(#[from] sxd_xpath::ParserError),
 
-    #[cfg(feature = "xpath")]
-    #[error(transparent)]
-    XPathExecutionError(#[from] sxd_xpath::ExecutionError),
+    // #[cfg(feature = "xpath")]
+    // #[error(transparent)]
+    // XPathExecutionError(#[from] sxd_xpath::ExecutionError),
 
     #[cfg(feature = "xpath")]
     #[error("{0}")]

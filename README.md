@@ -101,7 +101,8 @@ async fn request() -> Result<()> {
 
 <h3 id="xpath">XPath</h3>
 
-TODO
+* `XHtml::select(&self, xpath: &str) -> Result<XPathResult>`
+* 
 
 ## Related Projects
 

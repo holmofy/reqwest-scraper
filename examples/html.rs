@@ -20,7 +20,10 @@ async fn request() -> Result<()> {
     let select_result = html.select(".vcard-details > li.vcard-detail")?;
 
     for detail_item in select_result.iter() {
-        println!("{}", detail_item.attr("aria-label").unwrap())
+        println!(
+            "{}",
+            detail_item.attr("aria-label").unwrap_or_else(|| "".into())
+        )
     }
 
     Ok(())

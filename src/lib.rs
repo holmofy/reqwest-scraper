@@ -65,8 +65,9 @@ impl ScraperResponse for Response {
     async fn xpath(self) -> Result<XHtml> {
         if self.status().is_success() {
             let html_str = self.text().await?;
-            let package = sxd_document::parser::parse(html_str.as_str())?;
-            Ok(XHtml { value: package })
+            let parser = libxml::parser::Parser::default_html();
+            let doc = parser.parse_string(html_str)?;
+            Ok(XHtml { doc })
         } else {
             let status_code = self.status().as_u16();
             let response = self.text().await?;
