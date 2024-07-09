@@ -1,3 +1,5 @@
+//!  Select elements in HTML response using CSS selector
+//!
 use crate::error::Result;
 use itertools::Itertools;
 
@@ -46,6 +48,7 @@ impl<'a, T> Selectable<'a, T> {
 }
 
 impl<'a> Selectable<'a, scraper::Html> {
+    /// iterator
     pub fn iter(&self) -> HtmlSelectIterator {
         HtmlSelectIterator {
             select: self.node.select(&self.selector),
@@ -54,6 +57,7 @@ impl<'a> Selectable<'a, scraper::Html> {
 }
 
 impl<'a> Selectable<'a, ElementRef<'a>> {
+    /// iterator
     pub fn iter(&self) -> ElementSelectIterator {
         ElementSelectIterator {
             select: self.node.select(&self.selector),
@@ -81,8 +85,11 @@ impl<'a, 'b> Iterator for ElementSelectIterator<'a, 'b> {
     }
 }
 
+/// Case Sensitivity Match
 pub type CaseSensitivity = scraper::CaseSensitivity;
+/// Html element class attribute
 pub type Classes<'a> = scraper::node::Classes<'a>;
+/// Html element attributes
 pub type Attrs<'a> = scraper::node::Attrs<'a>;
 
 impl<'a> SelectItem<'a> {
@@ -116,6 +123,7 @@ impl<'a> SelectItem<'a> {
         self.element.attr(attr)
     }
 
+    /// Returns the text of this element.
     pub fn text(&self) -> String {
         self.element.text().join(" ")
     }
@@ -137,6 +145,7 @@ impl<'a> SelectItem<'a> {
             .map(|e| SelectItem { element: e })
     }
 
+    /// Use CSS selector to find elements based on the current element
     pub fn find(&self, selector: &str) -> Result<Selectable<'a, ElementRef>> {
         Selectable::wrap(selector, &self.element)
     }

@@ -1,3 +1,5 @@
+//!  Use JsonPath to select fields in json response
+//! 
 use crate::error::{Result, ScraperError};
 use jsonpath_lib as jsonpath;
 

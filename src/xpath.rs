@@ -1,3 +1,5 @@
+//!  Evalute the value in HTML response using xpath expression
+//!
 use std::collections::HashSet;
 
 use itertools::Itertools;
@@ -19,6 +21,7 @@ pub struct XPathResult {
 }
 
 impl XHtml {
+    /// Using xpath to extract results from html
     pub fn select(&self, xpath: &str) -> Result<XPathResult> {
         let context = Context::new(&self.doc)
             .map_err(|_| ScraperError::XPathError(format!("xpath parse failed:{}", xpath)))?;
