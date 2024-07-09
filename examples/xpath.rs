@@ -31,6 +31,7 @@ async fn request() -> Result<()> {
     for item in select_result.into_iter() {
         let attr = item.attr("aria-label").unwrap_or_else(|| "".into());
         println!("{}", attr);
+        println!("{}", item.text());
     }
 
     // attribute extract

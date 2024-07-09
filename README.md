@@ -10,7 +10,7 @@ Expand [reqwest](https://github.com/seanmonstar/reqwest) functionality to suppor
 
 * [x] Use [JsonPath](#jsonpath) to select fields in json
 * [x] Select elements in HTML using [CSS selector](#css-selector)
-* [ ] Evalute the value in HTML using [xpath expression](#xpath)
+* [x] Evalute the value in HTML using [xpath expression](#xpath)
 * [ ] Derive macro extract
 
 ### Start Guide
@@ -101,8 +101,67 @@ async fn request() -> Result<()> {
 
 <h3 id="xpath">XPath</h3>
 
-* `XHtml::select(&self, xpath: &str) -> Result<XPathResult>`
-* 
+* `XHtml::select(xpath: &str) -> Result<XPathResult>`
+* `XPathResult::as_nodes() -> Vec<Node>`
+* `XPathResult::as_strs() -> Vec<String>`
+* `XPathResult::as_node() -> Option<Node>`
+* `XPathResult::as_str() -> Option<String>`
+* `Node::name() -> String`
+* `Node::id() -> Option<String>`
+* `Node::classes() -> HashSet<String>`
+* `Node::attr(attr: &str) -> Option<String>`
+* `Node::has_attr(attr: &str) -> bool`
+* `Node::text() -> String`
+* TODO: `Node::html() -> String`
+* TODO: `Node::inner_html() -> String`
+* `Node::children() -> Vec<Node>`
+* `Node::findnodes(relative_xpath: &str) -> Result<Vec<Node>>`
+* `Node::findvalues(relative_xpath: &str) -> Result<Vec<String>>`
+* `Node::findnode(relative_xpath: &str) -> Result<Node>`
+* `Node::findvalue(relative_xpath: &str) -> Result<String>`
+
+[**example**](./examples/xpath.rs):
+
+```rust
+async fn request() -> Result<()> {
+    let html = reqwest::get("https://github.com/holmofy")
+        .await?
+        .xpath()
+        .await?;
+
+    // simple extract element
+    let name = html
+        .select("//span[contains(@class,'p-name')]")?
+        .as_node()
+        .unwrap()
+        .text();
+    println!("{}", name);
+    assert_eq!(name.trim(), "holmofy");
+
+    // iterate elements
+    let select_result = html
+        .select("//ul[contains(@class,'vcard-details')]/li[contains(@class,'vcard-detail')]")?
+        .as_nodes();
+
+    println!("{}", select_result.len());
+
+    for item in select_result.into_iter() {
+        let attr = item.attr("aria-label").unwrap_or_else(|| "".into());
+        println!("{}", attr);
+        println!("{}", item.text());
+    }
+
+    // attribute extract
+    let select_result = html
+        .select("//ul[contains(@class,'vcard-details')]/li[contains(@class,'vcard-detail')]/@aria-label")?
+        .as_strs();
+
+    println!("{}", select_result.len());
+    select_result.into_iter().for_each(|s| println!("{}", s));
+
+    Ok(())
+}
+```
 
 ## Related Projects
 

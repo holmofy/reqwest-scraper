@@ -29,11 +29,13 @@ impl XHtml {
     }
 }
 
+/// Html Node
 pub struct Node {
     node: libxml::tree::node::Node,
 }
 
 impl XPathResult {
+    /// return multiple results
     pub fn as_nodes(&self) -> Vec<Node> {
         self.object
             .get_nodes_as_vec()
@@ -42,19 +44,22 @@ impl XPathResult {
             .collect_vec()
     }
 
+    /// return multiple results as string
     pub fn as_strs(&self) -> Vec<String> {
         self.object.get_nodes_as_str()
     }
 
-    pub fn as_str(&self) -> Option<String> {
-        self.object.get_nodes_as_str().first().map(|s| s.to_owned())
-    }
-
+    /// return first result
     pub fn as_node(&self) -> Option<Node> {
         self.object
             .get_nodes_as_vec()
             .first()
             .map(|n| Node { node: n.to_owned() })
+    }
+
+    /// return first result as string
+    pub fn as_str(&self) -> Option<String> {
+        self.object.get_nodes_as_str().first().map(|s| s.to_owned())
     }
 }
 
@@ -71,7 +76,11 @@ impl Node {
 
     /// Returns the element class.
     pub fn classes(&self) -> HashSet<String> {
-        self.node.get_class_names()
+        self.node
+            .get_class_names()
+            .into_iter()
+            .filter(|c| !c.is_empty())
+            .collect()
     }
 
     /// Returns the value of an attribute.
@@ -79,14 +88,19 @@ impl Node {
         self.node.get_attribute(attr)
     }
 
+    /// Check if the attribute exists
+    pub fn has_attr(&self, attr: &str) -> bool {
+        self.node.has_attribute(attr)
+    }
+
+    /// Returns the text of this element.
     pub fn text(&self) -> String {
-        todo!()
+        self.node.get_content()
     }
 
     /// Returns the HTML of this element.
     pub fn html(&self) -> String {
-        // TODO
-        self.node.get_content()
+        todo!()
     }
 
     /// Returns the inner HTML of this element.
@@ -103,13 +117,57 @@ impl Node {
             .collect_vec()
     }
 
-    pub fn find(&self, relative_xpath: &str) -> Result<XPathResult> {
-        let context = Context::from_node(&self.node).map_err(|_| {
+    /// Find nodes based on this node using a relative xpath
+    pub fn findnodes(&self, relative_xpath: &str) -> Result<Vec<Node>> {
+        Ok(self
+            .node
+            .findnodes(relative_xpath)
+            .map_err(|_| {
+                ScraperError::XPathError(format!("relative xpath parse failed:{}", relative_xpath))
+            })?
+            .into_iter()
+            .map(|node| Node { node })
+            .collect_vec())
+    }
+
+    /// Find values based on this node using a relative xpath
+    pub fn findvalues(&self, relative_xpath: &str) -> Result<Vec<String>> {
+        self.node.findvalues(relative_xpath).map_err(|_| {
             ScraperError::XPathError(format!("relative xpath parse failed:{}", relative_xpath))
-        })?;
-        let object = context.evaluate(relative_xpath).map_err(|_| {
-            ScraperError::XPathError(format!("relative xpath parse failed:{}", relative_xpath))
-        })?;
-        Ok(XPathResult { object })
+        })
+    }
+
+    /// Find first node based on this node using a relative xpath
+    pub fn findnode(&self, relative_xpath: &str) -> Result<Node> {
+        self.node
+            .findnodes(relative_xpath)
+            .map_err(|_| {
+                ScraperError::XPathError(format!("relative xpath parse failed:{}", relative_xpath))
+            })?
+            .first()
+            .map(|node| Node {
+                node: node.to_owned(),
+            })
+            .ok_or_else(|| {
+                ScraperError::XPathError(format!("relative xpath don't found:{}", relative_xpath))
+            })
+    }
+
+    /// Find first value based on this node using a relative xpath
+    pub fn findvalue(&self, relative_xpath: &str) -> Result<String> {
+        match self
+            .node
+            .findvalues(relative_xpath)
+            .map_err(|_| {
+                ScraperError::XPathError(format!("relative xpath parse failed:{}", relative_xpath))
+            })?
+            .first()
+        {
+            Some(str) => Ok(str.to_owned()),
+            None => Err(ScraperError::XPathError(format!(
+                "relative xpath don't found:{}",
+                relative_xpath
+            ))),
+        }
     }
 }
