@@ -18,7 +18,6 @@ path = "src/lib.rs"
 
 [dependencies]
 async-trait = "0.1"
-darling = "0.20.10"
 itertools = "0.13"
 jsonpath_lib = { version = "0.3", optional = true }
 libxml = { version = "0.3", optional = true }
