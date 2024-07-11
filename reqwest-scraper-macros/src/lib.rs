@@ -10,7 +10,7 @@ pub fn derive_css_selector(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     css_selector::expand_derive_from_response(input)
-        .unwrap_or_else(|err| TokenStream::from(err.to_compile_error()))
+        .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
 

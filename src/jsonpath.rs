@@ -1,5 +1,5 @@
 //!  Use JsonPath to select fields in json response
-//! 
+//!
 use crate::error::{Result, ScraperError};
 use jsonpath_lib as jsonpath;
 
@@ -38,7 +38,7 @@ impl Json {
         let v = result
             .first()
             .ok_or_else(|| {
-                ScraperError::IllegalArgsError(format!(
+                ScraperError::JsonPathMatchError(format!(
                     "The \"{}\" jsonpath did not find data in json",
                     path
                 ))

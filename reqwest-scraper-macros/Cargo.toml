@@ -21,6 +21,7 @@ syn = { version = "2.0", features = [
     "proc-macro",
 ] }
 darling = "0.20.10"
+scraper = { version = "0.19", default-features = false }
 
 [dev-dependencies]
 reqwest-scraper = { version = "0.2", path = "../" }
