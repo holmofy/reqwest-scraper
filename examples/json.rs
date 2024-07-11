@@ -48,7 +48,7 @@ pub async fn request() -> Result<()> {
     println!("{}", total_count_str);
     println!("{}", total_count_int);
     println!("{}", names.join("\t"));
-    owners.iter().for_each(|o| println!("{:?}", o));
+    owners.iter().for_each(|o| println!("{:#?}", o));
 
     Ok(())
 }

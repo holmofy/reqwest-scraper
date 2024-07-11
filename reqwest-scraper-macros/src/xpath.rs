@@ -5,7 +5,6 @@ use proc_macro::TokenStream;
 struct XPathScraper {
     ident: syn::Ident,
     vis: syn::Visibility,
-    generics: syn::Generics,
     data: darling::ast::Data<(), XPathField>,
 }
 
@@ -16,5 +15,6 @@ struct XPathField {
 }
 
 pub fn expand_derive_from_response(input: syn::DeriveInput) -> syn::Result<TokenStream> {
+    let scraper = XPathScraper::from_derive_input(&input)?;
     todo!()
 }
