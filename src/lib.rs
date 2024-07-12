@@ -29,7 +29,7 @@ pub trait FromXPath {
     type XPathExtractResult;
 
     /// From Html Response
-    fn from(html: XHtml) -> Self::XPathExtractResult;
+    fn from_html(html: XHtml) -> Self::XPathExtractResult;
 }
 
 /// Use CssSelector to extract the HTML response body into the derived struct
@@ -39,7 +39,7 @@ pub trait FromCssSelector {
     type CssSelectorExtractResult;
 
     /// From Html Response
-    fn from(html: Html) -> Self::CssSelectorExtractResult;
+    fn from_html(html: Html) -> Self::CssSelectorExtractResult;
 }
 
 /// Use JsonPath to extract the Json response body into the derived struct
@@ -49,7 +49,7 @@ pub trait FromJsonPath {
     type JsonPathExtractResult;
 
     /// From Json Response
-    fn from(json: Json) -> Self::JsonPathExtractResult;
+    fn from_json(json: Json) -> Self::JsonPathExtractResult;
 }
 
 /// Support extended traits of jsonpath, css selector, and xpath

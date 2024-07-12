@@ -61,6 +61,7 @@ pub async fn request() -> Result<()> {
 
 * `Html::select(selector: &str) -> Result<Selectable>`
 * `Selectable::iter() -> impl Iterator<SelectItem>`
+* `Selectable::first() -> Option<SelectItem>`
 * `SelectItem::name() -> &str`
 * `SelectItem::id() -> Option<&str>`
 * `SelectItem::has_class(class: &str, case_sensitive: CaseSensitivity) -> bool`

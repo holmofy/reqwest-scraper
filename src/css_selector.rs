@@ -1,6 +1,6 @@
 //!  Select elements in HTML response using CSS selector
 //!
-use crate::error::{Result, ScraperError};
+use crate::error::Result;
 use itertools::Itertools;
 
 use scraper::ElementRef;
@@ -19,7 +19,6 @@ impl Html {
 
 /// Wrapper object for HTML elements and CSS selectors
 pub struct Selectable<'a, T> {
-    selector_str: String,
     selector: scraper::Selector,
     node: &'a T,
 }
@@ -42,7 +41,6 @@ pub struct SelectItem<'a> {
 impl<'a, T> Selectable<'a, T> {
     fn wrap(selector: &str, html: &'a T) -> Result<Selectable<'a, T>> {
         Ok(Self {
-            selector_str: selector.into(),
             selector: scraper::Selector::parse(selector)?,
             node: html,
         })
@@ -58,13 +56,8 @@ impl<'a> Selectable<'a, scraper::Html> {
     }
 
     /// first match item
-    pub fn first(&self) -> Result<SelectItem> {
-        self.iter().next().ok_or_else(|| {
-            ScraperError::CssSelectorMatchError(format!(
-                "The css selector did not match any results:{}",
-                self.selector_str
-            ))
-        })
+    pub fn first(&self) -> Option<SelectItem> {
+        self.iter().next()
     }
 }
 
@@ -77,13 +70,8 @@ impl<'a> Selectable<'a, ElementRef<'a>> {
     }
 
     /// first match item
-    pub fn first(&self) -> Result<SelectItem> {
-        self.iter().next().ok_or_else(|| {
-            ScraperError::CssSelectorMatchError(format!(
-                "The css selector did not match any results:{}",
-                self.selector_str
-            ))
-        })
+    pub fn first(&self) -> Option<SelectItem> {
+        self.iter().next()
     }
 }
 
