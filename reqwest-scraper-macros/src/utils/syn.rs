@@ -42,20 +42,6 @@ pub(crate) enum PathType {
 }
 
 impl PathType {
-    pub fn is_option(&self) -> bool {
-        match self {
-            Self::Option => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_vector(&self) -> bool {
-        match self {
-            Self::Vector => true,
-            _ => false,
-        }
-    }
-
     pub fn is_other(&self) -> bool {
         match self {
             Self::Other => true,

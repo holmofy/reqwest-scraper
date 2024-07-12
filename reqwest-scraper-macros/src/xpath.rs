@@ -1,6 +1,6 @@
 use crate::utils::syn::{get_type_detail, PathType};
 use darling::{ast::Data, FromDeriveInput, FromField};
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{spanned::Spanned, DeriveInput, Error, Result};
 
