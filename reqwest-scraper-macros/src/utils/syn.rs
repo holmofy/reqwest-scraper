@@ -1,23 +1,65 @@
 use syn::Type;
 
-pub fn is_option(ty: &Type) -> bool {
+pub(crate) fn get_type_detail(ty: &Type) -> PathType {
     match ty {
         Type::Path(typepath) if typepath.qself.is_none() => {
             let idents_of_path = typepath
                 .path
                 .segments
                 .iter()
-                .fold(String::new(), |mut acc, v| {
-                    acc.push_str(&v.ident.to_string());
-                    acc.push(':');
-                    acc
-                });
-            vec!["Option:", "std:option:Option:", "core:option:Option:"]
+                .map(|ps| ps.ident.to_string())
+                .collect::<Vec<_>>()
+                .join(":");
+
+            if vec!["Option", "std:option:Option", "core:option:Option"]
                 .into_iter()
                 .find(|s| idents_of_path == *s)
                 .and_then(|_| typepath.path.segments.last())
                 .is_some()
+            {
+                return PathType::Option;
+            }
+
+            if vec!["Vec", "std::vec::Vec", "core::vec::Vec", "alloc::vec::Vec"]
+                .into_iter()
+                .find(|s| idents_of_path == *s)
+                .and_then(|_| typepath.path.segments.last())
+                .is_some()
+            {
+                return PathType::Vector;
+            }
+
+            return PathType::Other;
         }
-        _ => false,
+        _ => PathType::Other,
+    }
+}
+
+pub(crate) enum PathType {
+    Option,
+    Vector,
+    Other,
+}
+
+impl PathType {
+    pub fn is_option(&self) -> bool {
+        match self {
+            Self::Option => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_vector(&self) -> bool {
+        match self {
+            Self::Vector => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_other(&self) -> bool {
+        match self {
+            Self::Other => true,
+            _ => false,
+        }
     }
 }

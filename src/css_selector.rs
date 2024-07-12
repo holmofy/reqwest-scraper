@@ -135,7 +135,7 @@ impl<'a> SelectItem<'a> {
 
     /// Returns the text of this element.
     pub fn text(&self) -> String {
-        self.element.text().join(" ")
+        self.element.text().join(" ").trim().into()
     }
 
     /// Returns the HTML of this element.

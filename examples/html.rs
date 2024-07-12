@@ -1,6 +1,5 @@
 use anyhow::Result;
 use reqwest_scraper::{FromCssSelector, ScraperResponse};
-use reqwest_scraper_macros::FromCssSelector;
 
 #[tokio::main]
 async fn main() {
@@ -8,16 +7,16 @@ async fn main() {
 }
 
 #[derive(Debug, FromCssSelector)]
-#[css_selector(selector = ".vcard-details > li.vcard-detail")]
-struct ExtractItem {
-    #[css_selector(attr = "aria-label", default = "\"label_default_value\"")]
-    aria_label: String,
-    #[css_selector(
-        selector = "svg.octicon",
-        attr = "class",
-        default = "\"svg_default_value\""
-    )]
-    svg_icon: String,
+#[selector(path = "#user-repositories-list > ul > li")]
+struct Repo {
+    #[selector(path = "a[itemprop~='name']", default = "<unname>", text)]
+    name: String,
+
+    #[selector(path = "span[itemprop~='programmingLanguage']", text)]
+    program_lang: Option<String>,
+
+    #[selector(path = "div.topics-row-container>a", text)]
+    topics: Vec<String>,
 }
 
 async fn request() -> Result<()> {
@@ -26,7 +25,7 @@ async fn request() -> Result<()> {
         .css_selector()
         .await?;
 
-    // Simple extract
+    // 1. Simple extract
     assert_eq!(
         html.select(".p-name")?
             .first()
@@ -35,27 +34,46 @@ async fn request() -> Result<()> {
         "holmofy"
     );
 
-    // Select List Element
-    let select_result = html.select(".vcard-details > li.vcard-detail")?;
+    let html = reqwest::get("https://github.com/holmofy?tab=repositories")
+        .await?
+        .css_selector()
+        .await?;
 
-    for detail_item in select_result.iter() {
-        let label = detail_item.attr("aria-label").unwrap_or_else(|| "");
-        let svg_element = detail_item.select("svg.octicon")?;
-        let svg_class = svg_element
+    // 2. Select List Element
+    println!("\n2. Select List Element");
+    let select_result = html.select("#user-repositories-list > ul > li")?;
+
+    for item in select_result.iter() {
+        let name = item
+            .select("a[itemprop~='name']")?
             .first()
-            .and_then(|e| e.attr("class"))
-            .unwrap_or("default_value");
+            .map(|e| e.text())
+            .unwrap_or("<unname>".into());
 
-        let item = ExtractItem {
-            aria_label: label.into(),
-            svg_icon: svg_class.into(),
+        let program_lang = item
+            .select("span[itemprop~='programmingLanguage']")?
+            .first()
+            .map(|e| e.text());
+
+        let topics = item
+            .select("div.topics-row-container>a")?
+            .iter()
+            .map(|e| e.text())
+            .collect::<Vec<_>>();
+
+        let item = Repo {
+            name,
+            program_lang,
+            topics,
         };
 
         println!("{:?}", item);
     }
 
     // 3. Extract By Derived Macros
-    let items = ExtractItem::from_html(html)?;
+    println!("\n3. Extract By Derived Macros");
+
+    let items = Repo::from_html(html)?;
     items.iter().for_each(|item| println!("{:?}", item));
 
     Ok(())

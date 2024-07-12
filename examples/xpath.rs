@@ -1,9 +1,22 @@
 use anyhow::Result;
-use reqwest_scraper::ScraperResponse;
+use reqwest_scraper::{FromXPath, ScraperResponse};
 
 #[tokio::main]
 async fn main() {
     request().await.expect("request error");
+}
+
+#[derive(Debug, FromXPath)]
+#[xpath(path = "//div[@id='user-repositories-list']/ul/li")]
+struct Repo {
+    #[xpath(path = ".//a[contains(@itemprop,'name')]/text()", default = "<unname>")]
+    name: String,
+
+    #[xpath(path = ".//span[contains(@itemprop,'programmingLanguage')]/text()")]
+    program_lang: Option<String>,
+
+    #[xpath(path = ".//div[contains(@class,'topics-row-container')]/a/text()")]
+    topics: Vec<String>,
 }
 
 async fn request() -> Result<()> {
@@ -18,7 +31,6 @@ async fn request() -> Result<()> {
         .as_node()
         .unwrap()
         .text();
-    println!("{}", name);
     assert_eq!(name.trim(), "holmofy");
 
     // iterate elements
@@ -31,27 +43,40 @@ async fn request() -> Result<()> {
     for item in select_result.into_iter() {
         let attr = item.attr("aria-label").unwrap_or_else(|| "".into());
         println!("{}", attr);
-        println!("{}", item.text());
+        println!("{}", item.text().trim());
     }
 
-    // attribute extract
-    let select_result = html
-        .select("//ul[contains(@class,'vcard-details')]/li[contains(@class,'vcard-detail')]/@aria-label")?
-        .as_strs();
+    let html = reqwest::get("https://github.com/holmofy?tab=repositories")
+        .await?
+        .xpath()
+        .await?;
 
-    println!("{}", select_result.len());
-    select_result.into_iter().for_each(|s| println!("{}", s));
+    // 2. Select List Element
+    println!("\n2. Select List Element");
+    let select_result = html.select("//div[@id='user-repositories-list']/ul/li")?;
 
-    //
-    let select_result = html
-        .select("//ul[contains(@class,'vcard-details')]/li[contains(@class,'vcard-detail')]/@aria-label")?
-        .as_nodes();
+    for item in select_result.as_nodes() {
+        let name = item.findvalue(".//a[contains(@itemprop,'name')]/text()")?;
 
-    println!("{}", select_result.len());
+        let program_lang =
+            item.findvalue(".//span[contains(@itemprop,'programmingLanguage')]/text()")?;
 
-    select_result
-        .into_iter()
-        .for_each(|n| println!("{}", n.name()));
+        let topics = item.findvalues(".//div[contains(@class,'topics-row-container')]/a/text()")?;
+
+        let item = Repo {
+            name,
+            program_lang: Some(program_lang),
+            topics,
+        };
+
+        println!("{:?}", item);
+    }
+
+    // 3. Extract By Derived Macros
+    println!("\n3. Extract By Derived Macros");
+
+    let items = Repo::from_xhtml(html)?;
+    items.iter().for_each(|item| println!("{:?}", item));
 
     Ok(())
 }

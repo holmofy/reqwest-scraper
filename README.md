@@ -11,7 +11,7 @@ Extends [reqwest](https://github.com/seanmonstar/reqwest) to support multiple we
 * [x] Use [JsonPath](#jsonpath) to select fields in json response
 * [x] Select elements in HTML response using [CSS selector](#css-selector)
 * [x] Evalute the value in HTML response using [xpath expression](#xpath)
-* [ ] Derive macro extract
+* [x] [Derive macro extract](#macros)
 
 ### Start Guide
 
@@ -163,6 +163,37 @@ async fn request() -> Result<()> {
     Ok(())
 }
 ```
+
+<h3 id="macros">Derive macro extract</h3>
+
+```rust
+// define struct and derive the FromCssSelector trait
+#[derive(Debug, FromCssSelector)]
+#[selector(path = "#user-repositories-list > ul > li")]
+struct Repo {
+    #[selector(path = "a[itemprop~='name']", default = "<unname>", text)]
+    name: String,
+
+    #[selector(path = "span[itemprop~='programmingLanguage']", text)]
+    program_lang: Option<String>,
+
+    #[selector(path = "div.topics-row-container>a", text)]
+    topics: Vec<String>,
+}
+
+// request
+let html = reqwest::get("https://github.com/holmofy?tab=repositories")
+    .await?
+    .css_selector()
+    .await?;
+
+// Use the generated `from_html` method to extract data into the struct
+let items = Repo::from_html(html)?;
+items.iter().for_each(|item| println!("{:?}", item));
+```
+
+
+
 
 ## Related Projects
 
