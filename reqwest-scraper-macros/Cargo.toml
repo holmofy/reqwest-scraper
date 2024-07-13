@@ -1,6 +1,6 @@
 [package]
 name = "reqwest-scraper-macros"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "Web scraping integration with reqwest"
 license-file = "LICENSE"
@@ -18,4 +18,4 @@ darling = "0.20.10"
 scraper = { version = "0.19", default-features = false }
 
 [dev-dependencies]
-reqwest-scraper = { version = "0.2", path = "../" }
+reqwest-scraper = { version = "0.3.0", path = "../" }

@@ -3,7 +3,7 @@ members = [".", "reqwest-scraper-macros"]
 
 [package]
 name = "reqwest-scraper"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "Web scraping integration with reqwest"
 license-file = "LICENSE"
@@ -22,7 +22,7 @@ reqwest = { version = "0.12" }
 scraper = { version = "0.19", optional = true }
 serde = { version = "1.0", optional = true }
 serde_json = { version = "1.0", optional = true }
-reqwest-scraper-macros = { version = "0.2.1", path = "./reqwest-scraper-macros", optional = true }
+reqwest-scraper-macros = { version = "0.3.0", path = "./reqwest-scraper-macros", optional = true }
 thiserror = "1.0"
 
 [features]
