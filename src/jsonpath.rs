@@ -17,7 +17,7 @@ impl Json {
             .str_path(path)?
             .value(&self.value)
             .select_as()
-            .map_err(|e| e.into())
+            .map_err(ScraperError::from)
     }
 
     /// Use jsonpath to select json string fields
@@ -44,6 +44,6 @@ impl Json {
             .str_path(path)?
             .value(&self.value)
             .select_as_str()
-            .map_err(|e| e.into())
+            .map_err(ScraperError::from)
     }
 }

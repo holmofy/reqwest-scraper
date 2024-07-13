@@ -79,9 +79,7 @@ impl<'a, 'b> Iterator for HtmlSelectIterator<'a, 'b> {
     type Item = SelectItem<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        Some(Self::Item {
-            element: self.select.next()?,
-        })
+        self.select.next().map(Self::Item::new)
     }
 }
 
@@ -89,9 +87,7 @@ impl<'a, 'b> Iterator for ElementSelectIterator<'a, 'b> {
     type Item = SelectItem<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        Some(Self::Item {
-            element: self.select.next()?,
-        })
+        self.select.next().map(Self::Item::new)
     }
 }
 
@@ -103,6 +99,11 @@ pub type Classes<'a> = scraper::node::Classes<'a>;
 pub type Attrs<'a> = scraper::node::Attrs<'a>;
 
 impl<'a> SelectItem<'a> {
+    /// constructor
+    pub fn new(element: ElementRef<'a>) -> Self {
+        Self { element }
+    }
+
     /// Returns the element name.
     pub fn name(&self) -> &str {
         self.element.value().name()
@@ -150,9 +151,7 @@ impl<'a> SelectItem<'a> {
 
     /// Iterate over all child nodes which are elements
     pub fn children(&self) -> impl Iterator<Item = SelectItem<'a>> {
-        self.element
-            .child_elements()
-            .map(|e| SelectItem { element: e })
+        self.element.child_elements().map(SelectItem::new)
     }
 
     /// Use CSS selector to find elements based on the current element

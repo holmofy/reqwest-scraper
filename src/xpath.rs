@@ -43,8 +43,8 @@ impl XPathResult {
         self.object
             .get_nodes_as_vec()
             .into_iter()
-            .map(|node| Node { node })
-            .collect_vec()
+            .map(Node::new)
+            .collect::<Vec<_>>()
     }
 
     /// return multiple results as string
@@ -57,16 +57,24 @@ impl XPathResult {
         self.object
             .get_nodes_as_vec()
             .first()
-            .map(|n| Node { node: n.to_owned() })
+            .map(|n| Node::new(n.to_owned()))
     }
 
     /// return first result as string
     pub fn as_str(&self) -> Option<String> {
-        self.object.get_nodes_as_str().first().map(|s| s.to_owned())
+        self.object
+            .get_nodes_as_str()
+            .first()
+            .map(ToOwned::to_owned)
     }
 }
 
 impl Node {
+    /// constructor
+    pub fn new(node: libxml::tree::node::Node) -> Self {
+        Self { node }
+    }
+
     /// Returns the element name.
     pub fn name(&self) -> String {
         self.node.get_name()
@@ -116,7 +124,7 @@ impl Node {
         self.node
             .get_child_elements()
             .into_iter()
-            .map(|node| Node { node })
+            .map(Node::new)
             .collect_vec()
     }
 
@@ -129,7 +137,7 @@ impl Node {
                 ScraperError::XPathError(format!("relative xpath parse failed:{}", relative_xpath))
             })?
             .into_iter()
-            .map(|node| Node { node })
+            .map(Node::new)
             .collect_vec())
     }
 
@@ -146,15 +154,14 @@ impl Node {
 
     /// Find first node based on this node using a relative xpath
     pub fn findnode(&self, relative_xpath: &str) -> Result<Option<Node>> {
-        Ok(self.node
+        Ok(self
+            .node
             .findnodes(relative_xpath)
             .map_err(|_| {
                 ScraperError::XPathError(format!("relative xpath parse failed:{}", relative_xpath))
             })?
             .first()
-            .map(|node| Node {
-                node: node.to_owned(),
-            }))
+            .map(|node| Node::new(node.to_owned())))
     }
 
     /// Find first value based on this node using a relative xpath
