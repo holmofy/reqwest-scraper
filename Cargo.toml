@@ -7,6 +7,7 @@ version = "0.3.0"
 edition = "2021"
 description = "Web scraping integration with reqwest"
 license = "MIT"
+authors = ["holmofy"]
 repository = "https://github.com/holmofy/reqwest-scraper"
 
 [lib]
