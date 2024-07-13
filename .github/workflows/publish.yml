@@ -22,6 +22,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - name: Install dependency
+        run: cargo install cargo-workspaces
       - name: Build
         run: cargo build --workspace --verbose
       - name: Run tests
