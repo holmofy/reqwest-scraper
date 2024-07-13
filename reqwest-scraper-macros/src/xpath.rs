@@ -93,16 +93,13 @@ fn generate_list_item_field_extractors(fields: Vec<&XPathStructField>) -> Result
         let xpath = &f.path;
         tokens.push(match ty {
             PathType::Option => quote! {
-                #field_ident: Some(item.findvalue(#xpath)?)
+                #field_ident: item.findvalue(#xpath)?
             },
             PathType::Vector => quote! {
                 #field_ident: item.findvalues(#xpath)?
             },
             PathType::Other => quote! {
-                #field_ident: match item.findvalue(#xpath) {
-                    Ok(v)=> v.into(),
-                    Err(_)=> #default.into()
-                }
+                #field_ident: item.findvalue(#xpath)?.unwrap_or(#default.into())
             },
         })
     }

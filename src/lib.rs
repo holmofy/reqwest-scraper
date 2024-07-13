@@ -22,7 +22,7 @@ use async_trait::async_trait;
 use error::ScraperError;
 pub use reqwest::Response;
 
-pub use reqwest_scraper_macros::{FromCssSelector, FromJsonPath, FromXPath};
+pub use reqwest_scraper_macros::{FromCssSelector, FromXPath};
 
 /// Use XPath to extract the HTML response body into the derived struct
 #[cfg(feature = "xpath")]
@@ -42,16 +42,6 @@ pub trait FromCssSelector {
 
     /// From Html Response
     fn from_html(html: Html) -> Self::CssSelectorExtractResult;
-}
-
-/// Use JsonPath to extract the Json response body into the derived struct
-#[cfg(feature = "jsonpath")]
-pub trait FromJsonPath {
-    /// extract result by jsonpath
-    type JsonPathExtractResult;
-
-    /// From Json Response
-    fn from_json(json: Json) -> Self::JsonPathExtractResult;
 }
 
 /// Support extended traits of jsonpath, css selector, and xpath

@@ -1,5 +1,4 @@
 mod css_selector;
-mod json;
 mod xpath;
 mod utils;
 
@@ -11,15 +10,6 @@ pub fn derive_css_selector(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     css_selector::expand_derive_from_response(input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_derive(FromJsonPath, attributes(jsonpath))]
-pub fn derive_jsonpath(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-
-    json::expand_derive_from_response(input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
