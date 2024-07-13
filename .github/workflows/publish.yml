@@ -4,6 +4,8 @@ on:
   push:
     branches: ["master"]
     paths:
+      - "reqwest-scaper-macros/src/*"
+      - "reqwest-scaper-macros/Cargo.toml"
       - "src/*"
       - "Cargo.toml"
   pull_request:
