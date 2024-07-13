@@ -29,4 +29,4 @@ jobs:
       - name: Run tests
         run: cargo test --workspace --verbose
       - name: Run Publish
-        run: cargo ws publish --verbose --token=${{secrets.CARGO_TOKEN}}
+        run: cargo ws publish --token=${{secrets.CARGO_TOKEN}}
