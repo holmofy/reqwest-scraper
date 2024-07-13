@@ -11,14 +11,14 @@ Extends [reqwest](https://github.com/seanmonstar/reqwest) to support multiple we
 * [x] Use [JsonPath](#jsonpath) to select fields in json response
 * [x] Select elements in HTML response using [CSS selector](#css-selector)
 * [x] Evalute the value in HTML response using [xpath expression](#xpath)
-* [ ] Derive macro extract
+* [x] [Derive macro extract](#macros)
 
 ### Start Guide
 
 * add dependency
     ```toml
     reqwest = { version = "0.12", features = ["json"] }
-    reqwest-scraper="0.2.1"
+    reqwest-scraper="0.3.0"
     ```
 * use ScraperResponse
     ```rust
@@ -61,6 +61,7 @@ pub async fn request() -> Result<()> {
 
 * `Html::select(selector: &str) -> Result<Selectable>`
 * `Selectable::iter() -> impl Iterator<SelectItem>`
+* `Selectable::first() -> Option<SelectItem>`
 * `SelectItem::name() -> &str`
 * `SelectItem::id() -> Option<&str>`
 * `SelectItem::has_class(class: &str, case_sensitive: CaseSensitivity) -> bool`
@@ -117,8 +118,8 @@ async fn request() -> Result<()> {
 * `Node::children() -> Vec<Node>`
 * `Node::findnodes(relative_xpath: &str) -> Result<Vec<Node>>`
 * `Node::findvalues(relative_xpath: &str) -> Result<Vec<String>>`
-* `Node::findnode(relative_xpath: &str) -> Result<Node>`
-* `Node::findvalue(relative_xpath: &str) -> Result<String>`
+* `Node::findnode(relative_xpath: &str) -> Result<Option<Node>>`
+* `Node::findvalue(relative_xpath: &str) -> Result<Option<String>>`
 
 [**example**](./examples/xpath.rs):
 
@@ -162,6 +163,62 @@ async fn request() -> Result<()> {
     Ok(())
 }
 ```
+
+<h3 id="macros">Derive macro extract</h3>
+
+**use `FromCssSelector` & `selector` to extract html element into struct**
+```rust
+// define struct and derive the FromCssSelector trait
+#[derive(Debug, FromCssSelector)]
+#[selector(path = "#user-repositories-list > ul > li")]
+struct Repo {
+    #[selector(path = "a[itemprop~='name']", default = "<unname>", text)]
+    name: String,
+
+    #[selector(path = "span[itemprop~='programmingLanguage']", text)]
+    program_lang: Option<String>,
+
+    #[selector(path = "div.topics-row-container>a", text)]
+    topics: Vec<String>,
+}
+
+// request
+let html = reqwest::get("https://github.com/holmofy?tab=repositories")
+    .await?
+    .css_selector()
+    .await?;
+
+// Use the generated `from_html` method to extract data into the struct
+let items = Repo::from_html(html)?;
+items.iter().for_each(|item| println!("{:?}", item));
+```
+
+**use `FromXPath` & `xpath` to extract html element into struct**
+```rust
+// define struct and derive the FromXPath trait
+#[derive(Debug, FromXPath)]
+#[xpath(path = "//div[@id='user-repositories-list']/ul/li")]
+struct Repo {
+    #[xpath(path = ".//a[contains(@itemprop,'name')]/text()", default = "<unname>")]
+    name: String,
+
+    #[xpath(path = ".//span[contains(@itemprop,'programmingLanguage')]/text()")]
+    program_lang: Option<String>,
+
+    #[xpath(path = ".//div[contains(@class,'topics-row-container')]/a/text()")]
+    topics: Vec<String>,
+}
+
+let html = reqwest::get("https://github.com/holmofy?tab=repositories")
+    .await?
+    .xpath()
+    .await?;
+
+// Use the generated `from_xhtml` method to extract data into the struct
+let items = Repo::from_xhtml(html)?;
+items.iter().for_each(|item| println!("{:?}", item));
+```
+
 
 ## Related Projects
 

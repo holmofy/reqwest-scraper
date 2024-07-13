@@ -1,5 +1,5 @@
 //!  Use JsonPath to select fields in json response
-//! 
+//!
 use crate::error::{Result, ScraperError};
 use jsonpath_lib as jsonpath;
 
@@ -20,15 +20,6 @@ impl Json {
             .map_err(|e| e.into())
     }
 
-    /// Use jsonpath to select json fields as string
-    pub fn select_as_str(&self, path: &str) -> Result<String> {
-        jsonpath::Selector::new()
-            .str_path(path)?
-            .value(&self.value)
-            .select_as_str()
-            .map_err(|e| e.into())
-    }
-
     /// Use jsonpath to select json string fields
     pub fn select_one<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
         let result = jsonpath::Selector::new()
@@ -38,12 +29,21 @@ impl Json {
         let v = result
             .first()
             .ok_or_else(|| {
-                ScraperError::IllegalArgsError(format!(
+                ScraperError::JsonPathMatchError(format!(
                     "The \"{}\" jsonpath did not find data in json",
                     path
                 ))
             })?
             .to_owned();
         Ok(serde_json::from_value::<T>(v.to_owned())?)
+    }
+
+    /// Use jsonpath to select json fields as string
+    pub fn select_as_str(&self, path: &str) -> Result<String> {
+        jsonpath::Selector::new()
+            .str_path(path)?
+            .value(&self.value)
+            .select_as_str()
+            .map_err(|e| e.into())
     }
 }

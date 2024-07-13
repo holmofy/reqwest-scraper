@@ -74,7 +74,7 @@ impl Node {
 
     /// Returns the element ID.
     pub fn id(&self) -> Option<String> {
-        self.node.get_attribute("id")
+        self.node.get_attribute("id").map(|s| s.trim().into())
     }
 
     /// Returns the element class.
@@ -88,7 +88,7 @@ impl Node {
 
     /// Returns the value of an attribute.
     pub fn attr(&self, attr: &str) -> Option<String> {
-        self.node.get_attribute(attr)
+        self.node.get_attribute(attr).map(|s| s.trim().into())
     }
 
     /// Check if the attribute exists
@@ -98,7 +98,7 @@ impl Node {
 
     /// Returns the text of this element.
     pub fn text(&self) -> String {
-        self.node.get_content()
+        self.node.get_content().trim().into()
     }
 
     /// Returns the HTML of this element.
@@ -135,14 +135,18 @@ impl Node {
 
     /// Find values based on this node using a relative xpath
     pub fn findvalues(&self, relative_xpath: &str) -> Result<Vec<String>> {
-        self.node.findvalues(relative_xpath).map_err(|_| {
-            ScraperError::XPathError(format!("relative xpath parse failed:{}", relative_xpath))
-        })
+        match self.node.findvalues(relative_xpath) {
+            Ok(vec) => Ok(vec.into_iter().map(|s| s.trim().to_string()).collect_vec()),
+            Err(_) => Err(ScraperError::XPathError(format!(
+                "relative xpath parse failed:{}",
+                relative_xpath
+            ))),
+        }
     }
 
     /// Find first node based on this node using a relative xpath
-    pub fn findnode(&self, relative_xpath: &str) -> Result<Node> {
-        self.node
+    pub fn findnode(&self, relative_xpath: &str) -> Result<Option<Node>> {
+        Ok(self.node
             .findnodes(relative_xpath)
             .map_err(|_| {
                 ScraperError::XPathError(format!("relative xpath parse failed:{}", relative_xpath))
@@ -150,27 +154,18 @@ impl Node {
             .first()
             .map(|node| Node {
                 node: node.to_owned(),
-            })
-            .ok_or_else(|| {
-                ScraperError::XPathError(format!("relative xpath don't found:{}", relative_xpath))
-            })
+            }))
     }
 
     /// Find first value based on this node using a relative xpath
-    pub fn findvalue(&self, relative_xpath: &str) -> Result<String> {
-        match self
+    pub fn findvalue(&self, relative_xpath: &str) -> Result<Option<String>> {
+        Ok(self
             .node
             .findvalues(relative_xpath)
             .map_err(|_| {
                 ScraperError::XPathError(format!("relative xpath parse failed:{}", relative_xpath))
             })?
             .first()
-        {
-            Some(str) => Ok(str.to_owned()),
-            None => Err(ScraperError::XPathError(format!(
-                "relative xpath don't found:{}",
-                relative_xpath
-            ))),
-        }
+            .map(|v| v.trim().into()))
     }
 }

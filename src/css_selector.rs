@@ -54,6 +54,11 @@ impl<'a> Selectable<'a, scraper::Html> {
             select: self.node.select(&self.selector),
         }
     }
+
+    /// first match item
+    pub fn first(&self) -> Option<SelectItem> {
+        self.iter().next()
+    }
 }
 
 impl<'a> Selectable<'a, ElementRef<'a>> {
@@ -62,6 +67,11 @@ impl<'a> Selectable<'a, ElementRef<'a>> {
         ElementSelectIterator {
             select: self.node.select(&self.selector),
         }
+    }
+
+    /// first match item
+    pub fn first(&self) -> Option<SelectItem> {
+        self.iter().next()
     }
 }
 
@@ -125,7 +135,7 @@ impl<'a> SelectItem<'a> {
 
     /// Returns the text of this element.
     pub fn text(&self) -> String {
-        self.element.text().join(" ")
+        self.element.text().join(" ").trim().into()
     }
 
     /// Returns the HTML of this element.
@@ -146,7 +156,7 @@ impl<'a> SelectItem<'a> {
     }
 
     /// Use CSS selector to find elements based on the current element
-    pub fn find(&self, selector: &str) -> Result<Selectable<'a, ElementRef>> {
+    pub fn select(&self, selector: &str) -> Result<Selectable<'a, ElementRef>> {
         Selectable::wrap(selector, &self.element)
     }
 }

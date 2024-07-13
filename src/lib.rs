@@ -22,6 +22,28 @@ use async_trait::async_trait;
 use error::ScraperError;
 pub use reqwest::Response;
 
+pub use reqwest_scraper_macros::{FromCssSelector, FromXPath};
+
+/// Use XPath to extract the HTML response body into the derived struct
+#[cfg(feature = "xpath")]
+pub trait FromXPath {
+    /// extract result by xpath
+    type XPathExtractResult;
+
+    /// From Html Response
+    fn from_xhtml(html: XHtml) -> Self::XPathExtractResult;
+}
+
+/// Use CssSelector to extract the HTML response body into the derived struct
+#[cfg(feature = "css_selector")]
+pub trait FromCssSelector {
+    /// extract result by css selector
+    type CssSelectorExtractResult;
+
+    /// From Html Response
+    fn from_html(html: Html) -> Self::CssSelectorExtractResult;
+}
+
 /// Support extended traits of jsonpath, css selector, and xpath
 #[async_trait]
 pub trait ScraperResponse {

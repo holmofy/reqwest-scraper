@@ -1,5 +1,5 @@
 //! Scraping Error
-//! 
+//!
 use thiserror::Error;
 
 /// Scraping Error
@@ -10,6 +10,11 @@ pub enum ScraperError {
     #[error(transparent)]
     JsonPathError(#[from] jsonpath_lib::JsonPathError),
 
+    /// JsonPath Match Error
+    #[cfg(feature = "jsonpath")]
+    #[error("jsonpath match error:{0}")]
+    JsonPathMatchError(String),
+
     /// Json Deserialize Error
     #[cfg(feature = "jsonpath")]
     #[error(transparent)]
@@ -19,6 +24,11 @@ pub enum ScraperError {
     #[cfg(feature = "css_selector")]
     #[error("css selector error: {0}")]
     CssSelectorError(String),
+
+    /// JsonPath Match Error
+    #[cfg(feature = "css_selector")]
+    #[error("css selector match error:{0}")]
+    CssSelectorMatchError(String),
 
     /// Html Document Parse Error
     #[cfg(feature = "xpath")]
@@ -37,10 +47,6 @@ pub enum ScraperError {
     /// Http response failed
     #[error("http request error:{0}, body text:{1}")]
     HttpError(u16, String),
-
-    /// Illegal Args Error
-    #[error("illegal argument:{0}")]
-    IllegalArgsError(String),
 }
 
 #[cfg(feature = "css_selector")]
