@@ -1,9 +1,14 @@
+use std::str::FromStr;
+
 use crate::utils::syn::{get_type_detail, PathType};
-use darling::{ast::Data, util::Flag, FromDeriveInput, FromField};
+use darling::{ast::Data, util::Flag, FromDeriveInput, FromField, FromMeta};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use scraper::Selector;
 use syn::{spanned::Spanned, DeriveInput, Error, Result};
+
+#[derive(Debug)]
+struct CssSelector(String);
 
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(selector), supports(struct_named))]
@@ -11,7 +16,7 @@ struct CssSelectorScraper {
     ident: syn::Ident,
     generics: syn::Generics,
     data: Data<(), CssSelectorStructField>,
-    path: Option<String>,
+    path: Option<CssSelector>,
 }
 
 #[derive(Debug, FromField)]
@@ -48,11 +53,10 @@ pub fn expand_derive_from_response(input: DeriveInput) -> syn::Result<TokenStrea
 
     Ok(match scraper.path {
         Some(selector) => {
-            check_selector(&selector)?;
             quote! {
-                impl #impl_generics reqwest_scraper::FromCssSelector for #type_name #ty_generics #where_clause {
-                    type CssSelectorExtractResult = reqwest_scraper::error::Result<std::vec::Vec<Self>>;
-                    fn from_html(html: reqwest_scraper::css_selector::Html) -> Self::CssSelectorExtractResult {
+                impl #impl_generics ::reqwest_scraper::FromCssSelector for #type_name #ty_generics #where_clause {
+                    type CssSelectorExtractResult = ::reqwest_scraper::error::Result<std::vec::Vec<Self>>;
+                    fn from_html(html: ::reqwest_scraper::css_selector::Html) -> Self::CssSelectorExtractResult {
                         let list = html.select(#selector)?;
                         let mut result: Vec<Self> = std::vec::Vec::new();
 
@@ -69,9 +73,9 @@ pub fn expand_derive_from_response(input: DeriveInput) -> syn::Result<TokenStrea
             }
         }
         None => quote! {
-            impl #impl_generics reqwest_scraper::FromCssSelector for #type_name #ty_generics #where_clause {
-                type CssSelectorExtractResult = reqwest_scraper::error::Result<Self>;
-                fn from_html(html: reqwest_scraper::css_selector::Html) -> Self::CssSelectorExtractResult {
+            impl #impl_generics ::reqwest_scraper::FromCssSelector for #type_name #ty_generics #where_clause {
+                type CssSelectorExtractResult = ::reqwest_scraper::error::Result<Self>;
+                fn from_html(html: ::reqwest_scraper::css_selector::Html) -> Self::CssSelectorExtractResult {
                     let item = &html;
 
                     Ok(Self {
@@ -103,17 +107,16 @@ fn generate_field_extractors(fields: Vec<&CssSelectorStructField>) -> Result<Vec
         }
         tokens.push(match &f.path {
             Some(selector) => {
-                check_selector(&selector)?;
                 match ty {
                     PathType::Option=>quote! {
                         #field_ident: item.select(#selector)?.first().and_then(#extractor).into()
                     },
                     PathType::Vector=>quote! {
                         #field_ident: item.select(#selector)?.iter()
-                                        .map(|item|std::option::Option::Some(item).and_then(#extractor))
+                                        .map(|item|::std::option::Option::Some(item).and_then(#extractor))
                                         .filter(|o|o.is_some())
                                         .map(|o|o.unwrap().into())
-                                        .collect::<std::vec::Vec<_>>()
+                                        .collect::<::std::vec::Vec<_>>()
                     },
                     PathType::Other=>quote! {
                         #field_ident: item.select(#selector)?.first().and_then(#extractor).unwrap_or(#default.into()).into()
@@ -123,7 +126,7 @@ fn generate_field_extractors(fields: Vec<&CssSelectorStructField>) -> Result<Vec
             None => {
                 match ty {
                     PathType::Option=>quote! {
-                        #field_ident: std::option::Option::Some(item).and_then(#extractor).into()
+                        #field_ident: ::std::option::Option::Some(item).and_then(#extractor).into()
                     },
                     PathType::Vector=>{
                         return Err(Error::new(
@@ -132,22 +135,13 @@ fn generate_field_extractors(fields: Vec<&CssSelectorStructField>) -> Result<Vec
                         ));
                     },
                     PathType::Other=>quote! {
-                        #field_ident: std::option::Option::Some(item).and_then(#extractor).unwrap_or(#default.into()).into()
+                        #field_ident: ::std::option::Option::Some(item).and_then(#extractor).unwrap_or(#default.into()).into()
                     }
                 }
             },
         })
     }
     return Ok(tokens);
-}
-
-fn check_selector(selector: &str) -> syn::Result<()> {
-    Selector::parse(selector).map(|_| ()).map_err(|err| {
-        syn::Error::new(
-            Span::call_site(),
-            format!("invalid css selector `{}`: {:?}", selector, err),
-        )
-    })
 }
 
 #[derive(Debug)]
@@ -220,9 +214,36 @@ impl quote::ToTokens for Extractor {
             Self::Text => quote! {|e|Some(e.text())},
             Self::Html => quote! {|e|Some(e.html())},
             Self::InnerHtml => quote! {|e|Some(e.inner_html())},
-            Self::HasClass(class) => quote! {|e|Some(e.has_class(#class,reqwest_scraper::css_selector::CaseSensitivity::CaseSensitive))},
+            Self::HasClass(class) => quote! {|e|Some(e.has_class(#class,::reqwest_scraper::css_selector::CaseSensitivity::CaseSensitive))},
             Self::Attr(attr) => quote! {|e|e.attr(#attr).map(|v|v.to_string())},
         })
+    }
+}
+
+impl FromStr for CssSelector {
+    type Err = syn::Error;
+
+    fn from_str(selector: &str) -> Result<Self> {
+        Selector::parse(selector).map(|_| ()).map_err(|err| {
+            syn::Error::new(
+                Span::call_site(),
+                format!("invalid css selector `{}`: {:?}", selector, err),
+            )
+        });
+        Ok(CssSelector(selector.to_string()))
+    }
+}
+
+impl FromMeta for CssSelector {
+    fn from_string(s: &str) -> darling::Result<Self> {
+        s.parse().map_err(darling::Error::from)
+    }
+}
+
+impl quote::ToTokens for CssSelector {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let selector = &self.0;
+        tokens.extend(quote! {#selector})
     }
 }
 

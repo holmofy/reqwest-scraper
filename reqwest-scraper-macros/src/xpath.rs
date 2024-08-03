@@ -40,9 +40,9 @@ pub fn expand_derive_from_response(input: DeriveInput) -> syn::Result<TokenStrea
         Some(xpath) => {
             let field_extractors = generate_list_item_field_extractors(fields)?;
             quote! {
-                impl #impl_generics reqwest_scraper::FromXPath for #type_name #ty_generics #where_clause {
-                    type XPathExtractResult = reqwest_scraper::error::Result<std::vec::Vec<Self>>;
-                    fn from_xhtml(html: reqwest_scraper::xpath::XHtml) -> Self::XPathExtractResult {
+                impl #impl_generics ::reqwest_scraper::FromXPath for #type_name #ty_generics #where_clause {
+                    type XPathExtractResult = ::reqwest_scraper::error::Result<std::vec::Vec<Self>>;
+                    fn from_xhtml(html: ::reqwest_scraper::xpath::XHtml) -> Self::XPathExtractResult {
                         let list = html.select(#xpath)?.as_nodes();
                         let mut result: Vec<Self> = std::vec::Vec::new();
 
@@ -61,9 +61,9 @@ pub fn expand_derive_from_response(input: DeriveInput) -> syn::Result<TokenStrea
         None => {
             let field_extractors = generate_field_extractors(fields)?;
             quote! {
-                impl #impl_generics reqwest_scraper::FromXPath for #type_name #ty_generics #where_clause {
-                    type XPathExtractResult = reqwest_scraper::error::Result<Self>;
-                    fn from_xhtml(html: reqwest_scraper::xpath::XHtml) -> Self::XPathExtractResult {
+                impl #impl_generics ::reqwest_scraper::FromXPath for #type_name #ty_generics #where_clause {
+                    type XPathExtractResult = ::reqwest_scraper::error::Result<Self>;
+                    fn from_xhtml(html: ::reqwest_scraper::xpath::XHtml) -> Self::XPathExtractResult {
                         let item = &html;
 
                         Ok(Self {
