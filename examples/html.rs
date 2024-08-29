@@ -1,4 +1,5 @@
 use anyhow::Result;
+use reqwest::Url;
 use reqwest_scraper::{FromCssSelector, ScraperResponse};
 
 #[tokio::main]
@@ -19,7 +20,21 @@ struct Repo {
     topics: Vec<String>,
 }
 
+struct ProxyPool {}
+
+impl ProxyPool {
+    fn new() -> Self {
+        Self {}
+    }
+
+    pub fn choose(&self, url: &Url) -> Option<Url> {
+        reqwest::Url::parse("https://my.prox").ok()
+    }
+}
+
 async fn request() -> Result<()> {
+    let pool = ProxyPool::new();
+    reqwest::Proxy::custom(move |url| pool.choose(url));
     let html = reqwest::get("https://github.com/holmofy")
         .await?
         .css_selector()
