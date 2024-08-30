@@ -224,7 +224,7 @@ impl FromStr for CssSelector {
     type Err = syn::Error;
 
     fn from_str(selector: &str) -> Result<Self> {
-        Selector::parse(selector).map(|_| ()).map_err(|err| {
+        let _ = Selector::parse(selector).map(|_| ()).map_err(|err| {
             syn::Error::new(
                 Span::call_site(),
                 format!("invalid css selector `{}`: {:?}", selector, err),

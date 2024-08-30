@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "reqwest-scraper-macros"]
+members = [".", "reqwest-scraper-macros", "reqwest-proxy-pool"]
 
 [package]
 name = "reqwest-scraper"
