@@ -2,7 +2,6 @@
 //!
 use crate::error::Result;
 use itertools::Itertools;
-
 use scraper::ElementRef;
 
 /// Html Response

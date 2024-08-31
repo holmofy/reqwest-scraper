@@ -1,14 +1,12 @@
 //!  Evalute the value in HTML response using xpath expression
 //!
-use std::collections::HashSet;
-
+use crate::error::{Result, ScraperError};
 use itertools::Itertools;
 use libxml::{
     tree::Document,
     xpath::{Context, Object},
 };
-
-use crate::error::{Result, ScraperError};
+use std::collections::HashSet;
 
 /// Html Response
 pub struct XHtml {

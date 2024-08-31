@@ -19,7 +19,9 @@ use crate::jsonpath::Json;
 #[cfg(feature = "xpath")]
 use crate::xpath::XHtml;
 use async_trait::async_trait;
+use encoding_rs::{Encoding, UTF_8};
 use error::ScraperError;
+use mime::Mime;
 pub use reqwest::Response;
 
 pub use reqwest_scraper_macros::{FromCssSelector, FromXPath};
@@ -58,6 +60,11 @@ pub trait ScraperResponse {
     /// Use XPath to select the response body
     #[cfg(feature = "xpath")]
     async fn xpath(self) -> Result<XHtml>;
+
+    /// If there is no Encoding method in the Content-Type of the response header,
+    /// try to read the meta information in the HTML to obtain the encoding.
+    /// eg: <meta charset="gb2312">
+    async fn html(self) -> Result<String>;
 }
 
 #[async_trait]
@@ -68,37 +75,132 @@ impl ScraperResponse for Response {
             let json_value = self.json().await?;
             Ok(Json { value: json_value })
         } else {
+            let url = self.url().to_string();
             let status_code = self.status().as_u16();
             let response = self.text().await?;
-            Err(ScraperError::HttpError(status_code, response))
+            Err(ScraperError::HttpError(url, status_code, response))
         }
     }
 
     #[cfg(feature = "css_selector")]
     async fn css_selector(self) -> Result<Html> {
         if self.status().is_success() {
-            let html_str = self.text().await?;
+            let html_str = self.html().await?;
             Ok(Html {
                 value: scraper::Html::parse_fragment(html_str.as_str()),
             })
         } else {
+            let url = self.url().to_string();
             let status_code = self.status().as_u16();
             let response = self.text().await?;
-            Err(ScraperError::HttpError(status_code, response))
+            Err(ScraperError::HttpError(url, status_code, response))
         }
     }
 
     #[cfg(feature = "xpath")]
     async fn xpath(self) -> Result<XHtml> {
         if self.status().is_success() {
-            let html_str = self.text().await?;
+            let html_str = self.html().await?;
             let parser = libxml::parser::Parser::default_html();
             let doc = parser.parse_string(html_str)?;
             Ok(XHtml { doc })
         } else {
+            let url = self.url().to_string();
             let status_code = self.status().as_u16();
             let response = self.text().await?;
-            Err(ScraperError::HttpError(status_code, response))
+            Err(ScraperError::HttpError(url, status_code, response))
         }
+    }
+
+    async fn html(self) -> Result<String> {
+        let content_type = self
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<Mime>().ok());
+        let encoding_name = content_type
+            .as_ref()
+            .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()));
+
+        let full = self.bytes().await?;
+        match encoding_name {
+            Some(encoding_name) => {
+                let encoding = Encoding::for_label(encoding_name.as_bytes()).unwrap_or(UTF_8);
+                let (text, _, _) = encoding.decode(&full);
+                Ok(text.into_owned())
+            }
+            None => {
+                let (text, _, _) = UTF_8.decode(&full);
+                let meta_charset = extract_charset(&text);
+                if let Some(meta_charset) = meta_charset {
+                    let encoding = Encoding::for_label(meta_charset.as_bytes()).unwrap_or(UTF_8);
+                    let (text, _, _) = encoding.decode(&full);
+                    Ok(text.into_owned())
+                } else {
+                    Ok(text.into_owned())
+                }
+            }
+        }
+    }
+}
+
+fn extract_charset(html: &str) -> Option<String> {
+    let meta_start = "<meta charset=";
+    if let Some(start_index) = html.find(meta_start) {
+        let start = start_index + meta_start.len();
+
+        // 查找第一个引号，确定是单引号还是双引号
+        let quote_char = html[start..].chars().next()?;
+
+        // 如果不是引号字符，返回None
+        if quote_char != '"' && quote_char != '\'' {
+            return None;
+        }
+
+        // 查找下一个引号，确定编码值的结束位置
+        let end_quote = html[start + 1..].find(quote_char)? + start + 1;
+
+        // 提取编码值
+        let charset = &html[start + 1..end_quote];
+        return Some(charset.to_string());
+    }
+
+    None
+}
+
+mod tests {
+
+    #[test]
+    fn test_extract_charset() {
+        use super::extract_charset;
+        let html = r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="gb2312">
+            <title>Example</title>
+        </head>
+        <body><p>Hello, world!</p></body>
+        </html>
+        "#;
+
+        let cs = extract_charset(html);
+        assert!(cs.is_some());
+        assert_eq!(cs.unwrap(), "gb2312");
+
+        let html = r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='gb2312'>
+            <title>Example</title>
+        </head>
+        <body><p>Hello, world!</p></body>
+        </html>
+        "#;
+
+        let cs = extract_charset(html);
+        assert!(cs.is_some());
+        assert_eq!(cs.unwrap(), "gb2312");
     }
 }

@@ -8,5 +8,15 @@ authors = ["holmofy"]
 repository = "https://github.com/holmofy/reqwest-scraper"
 
 [dependencies]
-reqwest = { version = "0.12" }
-reqwest_scraper = { path = "../" }
+reqwest = "0.12"
+reqwest-scraper = { path = "../" }
+thiserror = "1.0"
+inventory = "0.3"
+async-trait = "0.1"
+tokio = "1"
+log = "0.4"
+
+[dev-dependencies]
+anyhow = { version = "1.0", features = ["backtrace"] }
+tokio = { version = "1", features = ["full"] }
+env_logger = "0.11"

@@ -6,6 +6,7 @@ async fn main() {
     request().await.expect("request error");
 }
 
+#[allow(dead_code)]
 #[derive(Debug, FromXPath)]
 #[xpath(path = "//div[@id='user-repositories-list']/ul/li")]
 struct Repo {
