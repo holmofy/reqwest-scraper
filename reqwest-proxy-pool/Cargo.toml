@@ -8,13 +8,16 @@ authors = ["holmofy"]
 repository = "https://github.com/holmofy/reqwest-scraper"
 
 [dependencies]
-reqwest = "0.12"
+reqwest = { version = "0.12", features = ["json", "socks"] }
 reqwest-scraper = { path = "../" }
+serde = "1.0"
+serde_json = "1.0"
 thiserror = "1.0"
 inventory = "0.3"
 async-trait = "0.1"
 tokio = "1"
 log = "0.4"
+itertools = "0.13"
 
 [dev-dependencies]
 anyhow = { version = "1.0", features = ["backtrace"] }

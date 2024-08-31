@@ -39,45 +39,67 @@ impl SendProxyEx for ProxySender {
 }
 
 async fn get<T: reqwest::IntoUrl>(url: T) -> reqwest::Result<reqwest::Response> {
+    default_client()?.get(url).send().await
+}
+
+async fn post<T: reqwest::IntoUrl>(url: T) -> reqwest::Result<reqwest::Response> {
+    default_client()?.post(url).send().await
+}
+
+fn default_client() -> reqwest::Result<reqwest::Client> {
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(reqwest::header::USER_AGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 Edg/128.0.0.0".parse().unwrap());
-    reqwest::Client::builder()
+    Ok(reqwest::Client::builder()
         .default_headers(headers)
-        .build()?
-        .get(url)
-        .send()
-        .await
+        .danger_accept_invalid_certs(true)
+        .build()?)
+}
+
+trait OkLogErr<T> {
+    fn ok_log_err(self) -> Option<T>;
+}
+
+impl<T, E> OkLogErr<T> for std::result::Result<T, E>
+where
+    E: std::error::Error,
+{
+    fn ok_log_err(self) -> Option<T> {
+        match self {
+            Ok(x) => Some(x),
+            Err(e) => {
+                log::warn!("{}", e);
+                None
+            }
+        }
+    }
 }
 
 /// * https://www.docip.net/free
 mod docip {
-    use super::{ProxySender, SendProxyEx};
+    use super::{OkLogErr, ProxySender, SendProxyEx};
     use crate::{
         error::Result,
         proxy::{IntoProxy, Privacy, ProxyType},
     };
     use async_trait::async_trait;
-    use reqwest_scraper::{FromXPath, ScraperResponse};
+    use reqwest_scraper::ScraperResponse;
+    use serde::Deserialize;
     use std::{net::SocketAddr, str::FromStr};
 
-    #[derive(Debug, FromXPath)]
-    #[xpath(path = r#"//*[@id="freebody"]/tr"#)]
+    #[derive(Debug, Deserialize)]
     pub(super) struct Proxy {
-        #[xpath(path = "./th/text()")]
-        socket: Option<String>,
-
-        #[xpath(path = "./td[1]/text()")]
-        protocol: Option<String>,
-
-        #[xpath(path = "./td[2]/text()")]
-        anonymity: Option<String>,
+        ip: String,
+        proxy_type: String,
     }
 
     impl IntoProxy for Proxy {
         fn make_proxy(self) -> Option<crate::proxy::Proxy> {
-            let socket = SocketAddr::from_str(&self.socket?).ok()?;
-            let ty = ProxyType::from_str(&self.protocol?).ok()?;
-            let pri = Privacy::from_str(&self.anonymity?);
+            let socket = SocketAddr::from_str(&self.ip).ok_log_err()?;
+            let ty = match self.proxy_type.as_str() {
+                "1" => ProxyType::Https,
+                _ => ProxyType::Http,
+            };
+            let pri = Privacy::HighAnonymity;
 
             Some(crate::proxy::Proxy { socket, ty, pri })
         }
@@ -87,12 +109,12 @@ mod docip {
     #[async_trait]
     impl super::ProxyFetcher for ProxyFetcher {
         async fn fetch(&self, sender: ProxySender) -> Result<()> {
-            let html = super::get("https://www.docip.net/free")
+            let items: Vec<Proxy> = super::get("https://www2.docip.net/data/free.json")
                 .await?
-                .xpath()
-                .await?;
+                .jsonpath()
+                .await?
+                .select("$.data[*]")?;
 
-            let items = Proxy::from_xhtml(html)?;
             for item in items {
                 log::trace!("fetch proxy: {:?}", item);
                 sender.send_proxy(item).await?;
@@ -100,16 +122,16 @@ mod docip {
             Ok(())
         }
     }
-    inventory::submit! {
-        &ProxyFetcher as &dyn super::ProxyFetcher
-    }
+    // inventory::submit! {
+    //     &ProxyFetcher as &dyn super::ProxyFetcher
+    // }
 }
 
 /// 有反爬虫措施
 /// TODO: 第一个请求用混淆的js设置cookie
 /// * https://www.89ip.cn/index_1.html
 mod www89ip {
-    use super::{ProxySender, SendProxyEx};
+    use super::{OkLogErr, ProxySender, SendProxyEx};
     use crate::{
         error::Result,
         proxy::{IntoProxy, Privacy, ProxyType},
@@ -130,7 +152,8 @@ mod www89ip {
 
     impl IntoProxy for Proxy {
         fn make_proxy(self) -> Option<crate::proxy::Proxy> {
-            let socket = SocketAddr::from_str(&format!("{}:{}", self.ip?, self.port?)).ok()?;
+            let socket =
+                SocketAddr::from_str(&format!("{}:{}", self.ip?, self.port?)).ok_log_err()?;
 
             Some(crate::proxy::Proxy {
                 socket,
@@ -165,7 +188,7 @@ mod www89ip {
 
 /// * http://www.ip3366.net/free/?stype=1
 mod ip3366 {
-    use super::{ProxySender, SendProxyEx};
+    use super::{OkLogErr, ProxySender, SendProxyEx};
     use crate::{
         error::Result,
         proxy::{IntoProxy, Privacy, ProxyType},
@@ -192,8 +215,9 @@ mod ip3366 {
 
     impl IntoProxy for Proxy {
         fn make_proxy(self) -> Option<crate::proxy::Proxy> {
-            let socket = SocketAddr::from_str(&format!("{}:{}", self.ip?, self.port?)).ok()?;
-            let ty = ProxyType::from_str(&self.protocol?).ok()?;
+            let socket =
+                SocketAddr::from_str(&format!("{}:{}", self.ip?, self.port?)).ok_log_err()?;
+            let ty = ProxyType::from_str(&self.protocol?).ok_log_err()?;
             let pri = Privacy::from_str(&self.anonymity?);
 
             Some(crate::proxy::Proxy { socket, ty, pri })
@@ -224,38 +248,50 @@ mod ip3366 {
 
 /// * https://www.kuaidaili.com/free/intr/
 mod kuaidaili {
-    use super::{ProxySender, SendProxyEx};
+    use super::{OkLogErr, ProxySender, SendProxyEx};
     use crate::{
         error::Result,
-        proxy::{IntoProxy, Privacy, ProxyType},
+        proxy::{utils::substr_between, IntoProxy, Privacy, ProxyType},
     };
     use async_trait::async_trait;
-    use reqwest_scraper::{FromXPath, ScraperResponse};
+    use serde::Deserialize;
     use std::{net::SocketAddr, str::FromStr};
 
-    #[derive(Debug, FromXPath)]
-    #[xpath(path = r#"//*[@id="table__free-proxy"]/div/table/tbody/tr"#)]
-    pub(super) struct Proxy {
-        #[xpath(path = "./td[1]/text()")]
-        ip: Option<String>,
-
-        #[xpath(path = "./td[2]/text()")]
-        port: Option<String>,
-
-        #[xpath(path = "./td[3]/text()")]
-        anonymity: Option<String>,
-
-        #[xpath(path = "./td[4]/text()")]
-        protocol: Option<String>,
+    #[derive(Debug, Deserialize)]
+    pub(super) struct FreeProxy {
+        ip: String,
+        port: String,
     }
 
-    impl IntoProxy for Proxy {
+    impl IntoProxy for FreeProxy {
         fn make_proxy(self) -> Option<crate::proxy::Proxy> {
-            let socket = SocketAddr::from_str(&format!("{}:{}", self.ip?, self.port?)).ok()?;
-            let ty = ProxyType::from_str(&self.protocol?).ok()?;
-            let pri = Privacy::from_str(&self.anonymity?);
+            let socket =
+                SocketAddr::from_str(&format!("{}:{}", self.ip, self.port)).ok_log_err()?;
 
-            Some(crate::proxy::Proxy { socket, ty, pri })
+            Some(crate::proxy::Proxy {
+                socket,
+                ty: ProxyType::Http,
+                pri: Privacy::HighAnonymity,
+            })
+        }
+    }
+
+    #[derive(Debug, Deserialize)]
+    pub(super) struct HttpsProxy {
+        ip: String,
+        port: String,
+    }
+
+    impl IntoProxy for HttpsProxy {
+        fn make_proxy(self) -> Option<crate::proxy::Proxy> {
+            let socket =
+                SocketAddr::from_str(&format!("{}:{}", self.ip, self.port)).ok_log_err()?;
+
+            Some(crate::proxy::Proxy {
+                socket,
+                ty: ProxyType::Https,
+                pri: Privacy::HighAnonymity,
+            })
         }
     }
 
@@ -265,10 +301,18 @@ mod kuaidaili {
         async fn fetch(&self, sender: ProxySender) -> Result<()> {
             let html = super::get("https://www.kuaidaili.com/free/intr/")
                 .await?
-                .xpath()
+                .text()
                 .await?;
 
-            let items = Proxy::from_xhtml(html)?;
+            let json = match substr_between(&html, "const fpsList = ", ";") {
+                Some(json) => json,
+                None => {
+                    return Ok(log::warn!("json not found"));
+                }
+            };
+
+            let items: Vec<FreeProxy> = serde_json::from_str(json)?;
+
             for item in items {
                 log::trace!("fetch proxy: {:?}", item);
                 sender.send_proxy(item).await?;
@@ -276,14 +320,14 @@ mod kuaidaili {
             Ok(())
         }
     }
-    inventory::submit! {
-        &ProxyFetcher as &dyn super::ProxyFetcher
-    }
+    // inventory::submit! {
+    //     &ProxyFetcher as &dyn super::ProxyFetcher
+    // }
 }
 
 /// * https://www.zdaye.com/free/1/
 mod zdaye {
-    use super::{ProxySender, SendProxyEx};
+    use super::{OkLogErr, ProxySender, SendProxyEx};
     use crate::{
         error::Result,
         proxy::{IntoProxy, Privacy, ProxyType},
@@ -310,7 +354,8 @@ mod zdaye {
 
     impl IntoProxy for Proxy {
         fn make_proxy(self) -> Option<crate::proxy::Proxy> {
-            let socket = SocketAddr::from_str(&format!("{}:{}", self.ip?, self.port?)).ok()?;
+            let socket =
+                SocketAddr::from_str(&format!("{}:{}", self.ip?, self.port?)).ok_log_err()?;
             let ty = if let Some(http_class) = self.https {
                 if http_class.contains("iyes") {
                     ProxyType::Https
@@ -351,35 +396,51 @@ mod zdaye {
 /// * https://www.data5u.com/
 /// * https://ip.uqidata.com/
 mod uqidata {
-    use super::{ProxySender, SendProxyEx};
+    use super::{OkLogErr, ProxySender, SendProxyEx};
     use crate::{
         error::Result,
         proxy::{IntoProxy, Privacy, ProxyType},
     };
     use async_trait::async_trait;
-    use reqwest_scraper::{FromXPath, ScraperResponse};
+    use itertools::Itertools;
+    use reqwest_scraper::{css_selector::SelectItem, FromCssSelector, ScraperResponse};
     use std::{net::SocketAddr, str::FromStr};
 
-    #[derive(Debug, FromXPath)]
-    #[xpath(path = r#"//*[@id="main_container"]/div[1]/table/tbody/tr[position() >= 3]"#)]
+    #[derive(Debug, FromCssSelector)]
+    #[selector(path = "#main_container > div.inner > table > tbody > tr:nth-child(n+3)")]
     pub(super) struct Proxy {
-        #[xpath(path = "./td[1]/text()")]
+        #[selector(path = "td.ip", map = display_text)]
         ip: Option<String>,
 
-        #[xpath(path = "./td[2]/text()")]
+        #[selector(path = "td.port", text)]
         port: Option<String>,
 
-        #[xpath(path = "./td[3]/text()")]
+        #[selector(path = "td:nth-child(3)", text)]
         protocol: Option<String>,
 
-        #[xpath(path = "./td[4]/text()")]
+        #[selector(path = "td:nth-child(4)", text)]
         anonymity: Option<String>,
+    }
+
+    /// 该网站插入了很多display:none的元素干扰爬虫抓取
+    fn display_text(e: SelectItem) -> Option<String> {
+        Some(
+            e.children()
+                .filter(|e| {
+                    e.attr("style")
+                        .and_then(|style| Some(!style.contains("none")))
+                        .unwrap_or(true)
+                })
+                .map(|e| e.text())
+                .join(""),
+        )
     }
 
     impl IntoProxy for Proxy {
         fn make_proxy(self) -> Option<crate::proxy::Proxy> {
-            let socket = SocketAddr::from_str(&format!("{}:{}", self.ip?, self.port?)).ok()?;
-            let ty = ProxyType::from_str(&self.protocol?).ok()?;
+            let socket =
+                SocketAddr::from_str(&format!("{}:{}", self.ip?, self.port?)).ok_log_err()?;
+            let ty = ProxyType::from_str(&self.protocol?).ok_log_err()?;
             let pri = Privacy::from_str(&self.anonymity?);
 
             Some(crate::proxy::Proxy { socket, ty, pri })
@@ -390,9 +451,12 @@ mod uqidata {
     #[async_trait]
     impl super::ProxyFetcher for ProxyFetcher {
         async fn fetch(&self, sender: ProxySender) -> Result<()> {
-            let html = super::get("https://ip.uqidata.com/").await?.xpath().await?;
+            let html = super::get("https://ip.uqidata.com/")
+                .await?
+                .css_selector()
+                .await?;
 
-            let items = Proxy::from_xhtml(html)?;
+            let items = Proxy::from_html(html)?;
             for item in items {
                 log::trace!("fetch proxy: {:?}", item);
                 sender.send_proxy(item).await?;
@@ -400,40 +464,41 @@ mod uqidata {
             Ok(())
         }
     }
-    inventory::submit! {
-        &ProxyFetcher as &dyn super::ProxyFetcher
-    }
+    // inventory::submit! {
+    //     &ProxyFetcher as &dyn super::ProxyFetcher
+    // }
 }
 
 /// * http://proxydb.net/
 mod proxydb {
-    use super::{ProxySender, SendProxyEx};
+    use super::{OkLogErr, ProxySender, SendProxyEx};
     use crate::{
         error::Result,
         proxy::{IntoProxy, Privacy, ProxyType},
     };
     use async_trait::async_trait;
-    use reqwest_scraper::{FromXPath, ScraperResponse};
+    use serde::Deserialize;
     use std::{net::SocketAddr, str::FromStr};
 
-    #[derive(Debug, FromXPath)]
-    #[xpath(path = r#"//*[@id="app"]/div[1]/table/tbody/tr"#)]
+    #[derive(Debug, Deserialize)]
     pub(super) struct Proxy {
-        #[xpath(path = "./td[1]/text()")]
-        socket: Option<String>,
-
-        #[xpath(path = "./td[5]/text()")]
-        protocol: Option<String>,
-
-        #[xpath(path = "./td[6]/text()")]
-        anonymity: Option<String>,
+        ip: String,
+        port: i32,
+        #[serde(rename = "type")]
+        ty: String,
+        anonlvl: i32,
     }
 
     impl IntoProxy for Proxy {
         fn make_proxy(self) -> Option<crate::proxy::Proxy> {
-            let socket = SocketAddr::from_str(&self.socket?).ok()?;
-            let ty = ProxyType::from_str(&self.protocol?).ok()?;
-            let pri = Privacy::from_str(&self.anonymity?);
+            let socket =
+                SocketAddr::from_str(&format!("{}:{}", self.ip, self.port)).ok_log_err()?;
+            let ty = ProxyType::from_str(&self.ty).ok_log_err()?;
+            let pri = match self.anonlvl {
+                4 => Privacy::HighAnonymity,
+                2 => Privacy::Anonymity,
+                _ => Privacy::Unknown,
+            };
 
             Some(crate::proxy::Proxy { socket, ty, pri })
         }
@@ -443,9 +508,9 @@ mod proxydb {
     #[async_trait]
     impl super::ProxyFetcher for ProxyFetcher {
         async fn fetch(&self, sender: ProxySender) -> Result<()> {
-            let html = super::get("http://proxydb.net/").await?.xpath().await?;
+            let json = super::post("http://proxydb.net/list").await?.text().await?;
+            let items: Vec<Proxy> = serde_json::from_str(&json)?;
 
-            let items = Proxy::from_xhtml(html)?;
             for item in items {
                 log::trace!("fetch proxy: {:?}", item);
                 sender.send_proxy(item).await?;
@@ -453,41 +518,42 @@ mod proxydb {
             Ok(())
         }
     }
-    inventory::submit! {
-        &ProxyFetcher as &dyn super::ProxyFetcher
-    }
+    // inventory::submit! {
+    //     &ProxyFetcher as &dyn super::ProxyFetcher
+    // }
 }
 
 /// * https://list.proxylistplus.com/Fresh-HTTP-Proxy-List-1
 mod proxylistplus {
-    use super::{ProxySender, SendProxyEx};
+    use super::{OkLogErr, ProxySender, SendProxyEx};
     use crate::{
         error::Result,
         proxy::{IntoProxy, Privacy, ProxyType},
     };
     use async_trait::async_trait;
-    use reqwest_scraper::{FromXPath, ScraperResponse};
+    use reqwest_scraper::{FromCssSelector, ScraperResponse};
     use std::{net::SocketAddr, str::FromStr};
 
-    #[derive(Debug, FromXPath)]
-    #[xpath(path = r#"//*[@id="page"]/table[2]/tbody/tr[position() >= 3]"#)]
+    #[derive(Debug, FromCssSelector)]
+    #[selector(path = "#page > table.bg > tbody > tr:nth-child(n+3)")]
     pub(super) struct Proxy {
-        #[xpath(path = "./td[2]/text()")]
+        #[selector(path = "td:nth-child(2)", text)]
         ip: Option<String>,
 
-        #[xpath(path = "./td[3]/text()")]
+        #[selector(path = "td:nth-child(3)", text)]
         port: Option<String>,
 
-        #[xpath(path = "./td[4]/text()")]
+        #[selector(path = "td:nth-child(4)", text)]
         anonymity: Option<String>,
 
-        #[xpath(path = "./td[7]/text()")]
+        #[selector(path = "td:nth-child(7)", text)]
         https: Option<String>,
     }
 
     impl IntoProxy for Proxy {
         fn make_proxy(self) -> Option<crate::proxy::Proxy> {
-            let socket = SocketAddr::from_str(&format!("{}:{}", self.ip?, self.port?)).ok()?;
+            let socket =
+                SocketAddr::from_str(&format!("{}:{}", self.ip?, self.port?)).ok_log_err()?;
             let ty = if let Some(https_text) = self.https {
                 if https_text.contains("yes") {
                     ProxyType::Https
@@ -509,10 +575,10 @@ mod proxylistplus {
         async fn fetch(&self, sender: ProxySender) -> Result<()> {
             let html = super::get("https://list.proxylistplus.com/Fresh-HTTP-Proxy-List-1")
                 .await?
-                .xpath()
+                .css_selector()
                 .await?;
 
-            let items = Proxy::from_xhtml(html)?;
+            let items = Proxy::from_html(html)?;
             for item in items {
                 log::trace!("fetch proxy: {:?}", item);
                 sender.send_proxy(item).await?;
@@ -527,7 +593,7 @@ mod proxylistplus {
 
 /// * https://www.iplocation.net/proxy-list
 mod iplocation {
-    use super::{ProxySender, SendProxyEx};
+    use super::{OkLogErr, ProxySender, SendProxyEx};
     use crate::{
         error::Result,
         proxy::{IntoProxy, Privacy, ProxyType},
@@ -553,7 +619,8 @@ mod iplocation {
 
     impl IntoProxy for Proxy {
         fn make_proxy(self) -> Option<crate::proxy::Proxy> {
-            let socket = SocketAddr::from_str(&format!("{}:{}", self.ip?, self.port?)).ok()?;
+            let socket =
+                SocketAddr::from_str(&format!("{}:{}", self.ip?, self.port?)).ok_log_err()?;
             let ty = if let Some(https_class) = self.https {
                 if https_class.contains("my_https_status_green") {
                     ProxyType::Https

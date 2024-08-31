@@ -33,6 +33,7 @@ struct CssSelectorStructField {
     inner_html: Flag,
     has_class: Option<String>,
     attr: Option<String>,
+    map: Option<syn::Path>,
 }
 
 pub fn expand_derive_from_response(input: DeriveInput) -> syn::Result<TokenStream> {
@@ -153,6 +154,7 @@ pub enum Extractor {
     InnerHtml,
     HasClass(String),
     Attr(String),
+    Map(syn::Path),
 }
 
 impl Extractor {
@@ -195,12 +197,17 @@ impl Extractor {
             result = Self::Attr(attr.into());
             span = field.attr.span();
         }
+        if let Some(map) = &field.map {
+            exists += 1;
+            result = Self::Map(map.clone());
+            span = field.map.span();
+        }
         if exists <= 1 {
             return Ok(result);
         } else {
             return Err(Error::new(
                 span,
-                "[id,name,text,html,inner_html,has_class=\"class_name\",attr=\"name\"] must select only one",
+                "[id,name,text,html,inner_html,has_class=\"class_name\",attr=\"attr_name\",map=\"map_func\"] must select only one",
             ));
         }
     }
@@ -216,6 +223,7 @@ impl quote::ToTokens for Extractor {
             Self::InnerHtml => quote! {|e|Some(e.inner_html())},
             Self::HasClass(class) => quote! {|e|Some(e.has_class(#class,::reqwest_scraper::css_selector::CaseSensitivity::CaseSensitive))},
             Self::Attr(attr) => quote! {|e|e.attr(#attr).map(|v|v.to_string())},
+            Self::Map(fun_path) => quote!{#fun_path},
         })
     }
 }

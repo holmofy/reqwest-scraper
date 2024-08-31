@@ -46,6 +46,9 @@ impl<'a, T> Selectable<'a, T> {
     }
 }
 
+/// Selectable Html Document
+pub type SelectableHtml<'a> = Selectable<'a, scraper::Html>;
+
 impl<'a> Selectable<'a, scraper::Html> {
     /// iterator
     pub fn iter(&self) -> HtmlSelectIterator {
@@ -59,6 +62,9 @@ impl<'a> Selectable<'a, scraper::Html> {
         self.iter().next()
     }
 }
+
+/// Selectable Html Element
+pub type SelectableElement<'a> = Selectable<'a, ElementRef<'a>>;
 
 impl<'a> Selectable<'a, ElementRef<'a>> {
     /// iterator
@@ -135,7 +141,7 @@ impl<'a> SelectItem<'a> {
 
     /// Returns the text of this element.
     pub fn text(&self) -> String {
-        self.element.text().join(" ").trim().into()
+        self.element.text().join("").trim().into()
     }
 
     /// Returns the HTML of this element.

@@ -1,5 +1,5 @@
-use thiserror::Error;
 use crate::proxy::Proxy;
+use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, ProxyError>;
 
@@ -17,4 +17,7 @@ pub enum ProxyError {
 
     #[error(transparent)]
     SendErr(#[from] tokio::sync::mpsc::error::SendError<Proxy>),
+
+    #[error(transparent)]
+    JsonDecodeErr(#[from] serde_json::error::Error),
 }

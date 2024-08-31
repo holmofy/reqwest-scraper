@@ -1,4 +1,5 @@
 pub(crate) mod proxy_fetch;
+pub(crate) mod utils;
 
 use crate::error::{ProxyError, Result};
 use std::net::SocketAddr;
@@ -25,8 +26,10 @@ impl ProxyType {
             "http/s" => Ok(Self::Https),
             "http(s)" => Ok(Self::Https),
             "socks" => Ok(Self::Socks),
-            "socks4" => Ok(Self::Socks),
             "socks5" => Ok(Self::Socks),
+            "socks4" => Err(ProxyError::ProtocolParseErr(
+                "socks4 not support".to_string(),
+            )),
             _other => Err(ProxyError::ProtocolParseErr(_other.to_string())),
         }
     }
