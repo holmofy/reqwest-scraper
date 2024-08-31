@@ -1,5 +1,6 @@
 mod error;
 mod proxy;
+mod utils;
 
 use proxy::Proxy;
 use reqwest::Url;
@@ -18,7 +19,7 @@ impl ProxyPool {
 
     pub async fn scraper(&self) {
         let (tx, mut rx) = mpsc::channel::<Proxy>(32);
-        proxy::proxy_fetch::fetch(tx).await;
+        proxy::fetch(tx).await;
 
         while let Some(proxy) = rx.recv().await {
             println!("GOT = {:?}", proxy);
