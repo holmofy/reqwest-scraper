@@ -9,6 +9,7 @@ use libxml::{
 use std::collections::HashSet;
 
 /// Html Response
+#[derive(Clone)]
 pub struct XHtml {
     pub(crate) doc: Document,
 }

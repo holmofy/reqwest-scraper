@@ -39,19 +39,46 @@ pub(super) struct ProxyFetcher;
 #[async_trait]
 impl super::ProxyFetcher for ProxyFetcher {
     async fn fetch(&self, sender: ProxySender) -> Result<()> {
-        let html = super::get("http://www.ip3366.net/free/?stype=1")
-            .await?
-            .xpath()
-            .await?;
+        let result = inner_fetch("?stype=1".to_string()).await?;
 
-        let items = Proxy::from_xhtml(html)?;
-        for item in items {
+        for item in result {
+            log::trace!("fetch proxy: {:?}", item);
+            sender.send_proxy(item).await?;
+        }
+
+        let result = inner_fetch("?stype=2".to_string()).await?;
+
+        for item in result {
             log::trace!("fetch proxy: {:?}", item);
             sender.send_proxy(item).await?;
         }
         Ok(())
     }
 }
+
+async fn inner_fetch(mut query: String) -> Result<Vec<Proxy>> {
+    let mut result = vec![];
+    loop {
+        let html = super::get(format!("http://www.ip3366.net/free/{query}"))
+            .await?
+            .xpath()
+            .await?;
+
+        let next_page = html
+            .select("//*[@id='listnav']/ul/a[text()='下一页']/@href")?
+            .as_str();
+
+        let items = Proxy::from_xhtml(html)?;
+        result.extend(items);
+
+        query = match next_page {
+            None => break,
+            Some(href) => href,
+        };
+    }
+    Ok(result)
+}
+
 inventory::submit! {
     &ProxyFetcher as &dyn super::ProxyFetcher
 }
