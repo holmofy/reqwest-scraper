@@ -6,10 +6,16 @@ use scraper::ElementRef;
 
 /// Html Response
 pub struct Html {
-    pub(crate) value: scraper::Html,
+    value: scraper::Html,
 }
 
 impl Html {
+    /// constructor
+    pub fn new(html_str: &str) -> Self {
+        Self {
+            value: scraper::Html::parse_fragment(html_str),
+        }
+    }
     /// Select elements in HTML using CSS selector
     pub fn select(&self, selector: &str) -> Result<Selectable<scraper::Html>> {
         Selectable::wrap(selector, &self.value)
@@ -162,5 +168,41 @@ impl<'a> SelectItem<'a> {
     /// Use CSS selector to find elements based on the current element
     pub fn select(&self, selector: &str) -> Result<Selectable<'a, ElementRef>> {
         Selectable::wrap(selector, &self.element)
+    }
+}
+
+mod tests {
+
+    #[test]
+    fn test_css_selecctor() {
+        use super::*;
+
+        let html_str = r#"
+        <html>
+            <body>
+                <div id="content">
+                    <p>Hello, World!</p>
+                    <p>This is a test.</p>
+                </div>
+            </body>
+        </html>
+        "#;
+
+        let html = Html::new(html_str);
+        let content = html.select("#content").unwrap();
+        let content = content.first();
+        assert!(content.is_some());
+        let content = content.unwrap();
+        assert_eq!(content.attr("id").unwrap(), "content");
+
+        let p1 = content.select("p:nth-child(1)").ok().unwrap();
+        let p1 = p1.first();
+        assert!(p1.is_some());
+        assert_eq!(p1.unwrap().text(), "Hello, World!");
+
+        let p2 = content.select("p:nth-child(2)").ok().unwrap();
+        let p2 = p2.first();
+        assert!(p2.is_some());
+        assert_eq!(p2.unwrap().text(), "This is a test.");
     }
 }
