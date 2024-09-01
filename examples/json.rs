@@ -2,6 +2,7 @@ use anyhow::Result;
 use reqwest_scraper::ScraperResponse;
 use serde::Deserialize;
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct Owner {
     login: String,

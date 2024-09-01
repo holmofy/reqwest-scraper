@@ -6,6 +6,7 @@ async fn main() {
     request().await.expect("request error");
 }
 
+#[allow(dead_code)]
 #[derive(Debug, FromCssSelector)]
 #[selector(path = "#user-repositories-list > ul > li")]
 struct Repo {

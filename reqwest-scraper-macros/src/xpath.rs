@@ -103,7 +103,7 @@ fn generate_list_item_field_extractors(fields: Vec<&XPathStructField>) -> Result
             },
         })
     }
-    return Ok(tokens);
+    Ok(tokens)
 }
 
 fn generate_field_extractors(fields: Vec<&XPathStructField>) -> Result<Vec<TokenStream>> {
@@ -133,7 +133,7 @@ fn generate_field_extractors(fields: Vec<&XPathStructField>) -> Result<Vec<Token
             },
         });
     }
-    return Ok(tokens);
+    Ok(tokens)
 }
 
 #[test]

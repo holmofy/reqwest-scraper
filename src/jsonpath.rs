@@ -2,7 +2,6 @@
 //!
 use crate::error::{Result, ScraperError};
 use jsonpath_lib as jsonpath;
-
 use serde::de::DeserializeOwned;
 
 /// Json Response

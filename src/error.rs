@@ -45,8 +45,8 @@ pub enum ScraperError {
     IOError(#[from] reqwest::Error),
 
     /// Http response failed
-    #[error("http request error:{0}, body text:{1}")]
-    HttpError(u16, String),
+    #[error("http request for \"{0}\" error code:{1}, body text:{2}")]
+    HttpError(String, u16, String),
 }
 
 #[cfg(feature = "css_selector")]
