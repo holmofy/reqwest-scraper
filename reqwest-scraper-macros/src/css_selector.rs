@@ -142,7 +142,7 @@ fn generate_field_extractors(fields: Vec<&CssSelectorStructField>) -> Result<Vec
             },
         })
     }
-    return Ok(tokens);
+    Ok(tokens)
 }
 
 #[derive(Debug)]
@@ -203,12 +203,12 @@ impl Extractor {
             span = field.map.span();
         }
         if exists <= 1 {
-            return Ok(result);
+            Ok(result)
         } else {
-            return Err(Error::new(
+            Err(Error::new(
                 span,
                 "[id,name,text,html,inner_html,has_class=\"class_name\",attr=\"attr_name\",map=\"map_func\"] must select only one",
-            ));
+            ))
         }
     }
 }

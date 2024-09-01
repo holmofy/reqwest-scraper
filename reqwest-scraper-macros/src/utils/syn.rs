@@ -29,7 +29,7 @@ pub(crate) fn get_type_detail(ty: &Type) -> PathType {
                 return PathType::Vector;
             }
 
-            return PathType::Other;
+            PathType::Other
         }
         _ => PathType::Other,
     }
@@ -43,9 +43,6 @@ pub(crate) enum PathType {
 
 impl PathType {
     pub fn is_other(&self) -> bool {
-        match self {
-            Self::Other => true,
-            _ => false,
-        }
+        matches!(self, Self::Other)
     }
 }

@@ -57,7 +57,9 @@ async fn request() -> Result<()> {
     let select_result = html.select("//div[@id='user-repositories-list']/ul/li")?;
 
     for item in select_result.as_nodes() {
-        let name = item.findvalue(".//a[contains(@itemprop,'name')]/text()")?.unwrap_or("".into());
+        let name = item
+            .findvalue(".//a[contains(@itemprop,'name')]/text()")?
+            .unwrap_or("".into());
 
         let program_lang =
             item.findvalue(".//span[contains(@itemprop,'programmingLanguage')]/text()")?;
@@ -66,7 +68,7 @@ async fn request() -> Result<()> {
 
         let item = Repo {
             name,
-            program_lang: program_lang,
+            program_lang,
             topics,
         };
 

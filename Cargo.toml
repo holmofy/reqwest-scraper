@@ -1,9 +1,9 @@
 [workspace]
-members = [".", "reqwest-scraper-macros", "reqwest-proxy-pool"]
+members = [".", "reqwest-scraper-macros"]
 
 [package]
 name = "reqwest-scraper"
-version = "0.3.2"
+version = "0.4.0"
 edition = "2021"
 description = "Web scraping integration with reqwest"
 license = "MIT"
@@ -25,7 +25,7 @@ libxml = { version = "0.3", optional = true }
 scraper = { version = "0.19", optional = true }
 serde = { version = "1.0", optional = true }
 serde_json = { version = "1.0", optional = true }
-reqwest-scraper-macros = { version = "0.3.2", path = "./reqwest-scraper-macros", optional = true }
+reqwest-scraper-macros = { version = "0.4.0", path = "./reqwest-scraper-macros", optional = true }
 thiserror = "1.0"
 
 [features]
