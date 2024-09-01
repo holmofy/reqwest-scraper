@@ -72,8 +72,8 @@ impl ScraperResponse for Response {
     #[cfg(feature = "jsonpath")]
     async fn jsonpath(self) -> Result<Json> {
         if self.status().is_success() {
-            let json_value = self.json().await?;
-            Ok(Json { value: json_value })
+            let json = self.text().await?;
+            Ok(Json::new(json.as_str())?)
         } else {
             let url = self.url().to_string();
             let status_code = self.status().as_u16();
@@ -86,9 +86,7 @@ impl ScraperResponse for Response {
     async fn css_selector(self) -> Result<Html> {
         if self.status().is_success() {
             let html_str = self.html().await?;
-            Ok(Html {
-                value: scraper::Html::parse_fragment(html_str.as_str()),
-            })
+            Ok(Html::new(html_str.as_str()))
         } else {
             let url = self.url().to_string();
             let status_code = self.status().as_u16();
@@ -101,9 +99,7 @@ impl ScraperResponse for Response {
     async fn xpath(self) -> Result<XHtml> {
         if self.status().is_success() {
             let html_str = self.html().await?;
-            let parser = libxml::parser::Parser::default_html();
-            let doc = parser.parse_string(html_str)?;
-            Ok(XHtml { doc })
+            Ok(XHtml::new(html_str)?)
         } else {
             let url = self.url().to_string();
             let status_code = self.status().as_u16();

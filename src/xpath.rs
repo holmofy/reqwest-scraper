@@ -11,7 +11,7 @@ use std::collections::HashSet;
 /// Html Response
 #[derive(Clone)]
 pub struct XHtml {
-    pub(crate) doc: Document,
+    doc: Document,
 }
 
 /// Wrap HTML document and compiled xpath
@@ -20,6 +20,12 @@ pub struct XPathResult {
 }
 
 impl XHtml {
+    /// constructor
+    pub fn new<S: Into<String>>(html_str: S) -> Result<Self> {
+        let parser = libxml::parser::Parser::default_html();
+        let doc = parser.parse_string(html_str.into())?;
+        Ok(Self { doc })
+    }
     /// Using xpath to extract results from html
     pub fn select(&self, xpath: &str) -> Result<XPathResult> {
         let context = Context::new(&self.doc)
@@ -173,5 +179,42 @@ impl Node {
             })?
             .first()
             .map(|v| v.trim().into()))
+    }
+}
+
+mod tests {
+
+    #[test]
+    fn test_select_xpath() {
+        use super::*;
+        let html_str = r#"
+        <html>
+            <body>
+                <div id="content">
+                    <p>Hello, World!</p>
+                    <p>This is a test.</p>
+                </div>
+            </body>
+        </html>
+        "#;
+
+        let xhtml = XHtml::new(html_str).expect("parse xhtml failed");
+
+        let content = xhtml.select("//div[@id='content']").ok();
+        assert!(content.is_some());
+
+        let content = content.unwrap().as_node();
+        assert!(content.is_some());
+
+        let content = content.unwrap();
+        assert_eq!(content.attr("id").unwrap(), "content");
+        let children = content.children();
+        assert_eq!(children.len(), 2);
+        assert_eq!(children[0].text(), "Hello, World!");
+        assert_eq!(children[1].text(), "This is a test.");
+
+        let p1 = content.findvalue("./p[position()=1]").unwrap();
+        assert!(p1.is_some());
+        assert_eq!(p1.unwrap(), "Hello, World!");
     }
 }
