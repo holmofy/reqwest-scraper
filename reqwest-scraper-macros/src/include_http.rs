@@ -38,7 +38,6 @@ fn parse_http_file(content: &str) -> Vec<HttpRequestFn> {
 
 fn parse_http(content: &str) -> Vec<HttpRequestFn> {
     let mut request_fns = vec![];
-    eprintln!("content: {content}");
     for caps in HTTP_RE.captures_iter(content) {
         let name = caps
             .name("name")
