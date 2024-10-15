@@ -32,10 +32,10 @@ async fn main() {
 }
 
 pub async fn request() -> Result<()> {
-    let json = reqwest::Client::builder()
-        .build()?
+    let json = reqwest::Client::new()
         .get("https://api.github.com/search/repositories?q=rust")
         .header("User-Agent", "Rust Reqwest")
+        .body("body")
         .send()
         .await?
         .jsonpath()

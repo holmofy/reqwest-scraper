@@ -17,3 +17,5 @@ quote = "1.0"
 syn = "2.0"
 darling = "0.20.10"
 scraper = { version = "0.19", default-features = false }
+lazy_static = "1.5"
+regex = "1.11"

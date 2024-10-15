@@ -1,9 +1,10 @@
 mod css_selector;
-mod xpath;
+mod include_http;
 mod utils;
+mod xpath;
 
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{parse_macro_input, DeriveInput, LitStr};
 
 #[proc_macro_derive(FromCssSelector, attributes(selector))]
 pub fn derive_css_selector(input: TokenStream) -> TokenStream {
@@ -19,6 +20,14 @@ pub fn derive_xpath(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     xpath::expand_derive_from_response(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro]
+pub fn include_http(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as LitStr);
+    include_http::expand_macro(input.value())
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
