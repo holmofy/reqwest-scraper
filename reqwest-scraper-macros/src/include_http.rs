@@ -20,7 +20,6 @@ pub fn expand_macro(file_path: String) -> syn::Result<TokenStream> {
 }
 
 lazy_static! {
-    // 正则表达式解析 HTTP 方法和 URL
     static ref SNIPPET_SPLITTER: Regex = Regex::new(r"#{3,}").unwrap();
     static ref HTTP_RE: Regex = Regex::new(r"(?<name>\w+)\n(?<method>GET|POST|HEAD|PUT|DELETE|PATCH|HEAD|OPTIONS|TRACE)\s*(?<url>https?://\S+)(?:\n(?<headers>(?:\S+:\s+[^\n]+\n)*)\n?(?<body>[\s\S]*))?").unwrap();
     static ref HEADER_RE: Regex = Regex::new(r"(?<key>\S+):\s*(?<value>[^\n]+)").unwrap();
@@ -51,7 +50,7 @@ fn parse_http(content: &str) -> Vec<HttpRequestFn> {
             for caps in HEADER_RE.captures_iter(headers_str.as_str()) {
                 let key = caps.name("key").unwrap().as_str();
                 let value = caps.name("value").unwrap().as_str();
-                headers.insert(key, value);
+                headers.insert(key, StrEnum::new(value));
             }
         }
 
@@ -61,9 +60,9 @@ fn parse_http(content: &str) -> Vec<HttpRequestFn> {
             name,
             request: HttpRequest {
                 method,
-                url,
+                url: StrEnum::new(url),
                 headers,
-                body,
+                body: body.map(StrEnum::new),
             },
         })
     }
@@ -77,9 +76,9 @@ struct HttpRequestFn<'f> {
 
 struct HttpRequest<'f> {
     method: &'f str,
-    url: &'f str,
-    headers: HashMap<&'f str, &'f str>,
-    body: Option<&'f str>,
+    url: StrEnum<'f>,
+    headers: HashMap<&'f str, StrEnum<'f>>,
+    body: Option<StrEnum<'f>>,
 }
 
 impl<'f> ToTokens for HttpRequestFn<'f> {
@@ -115,6 +114,37 @@ impl<'f> ToTokens for HttpRequest<'f> {
     }
 }
 
-struct FormatInterpolator {
-    
+enum StrEnum<'f> {
+    RawStr(&'f str),
+    Format(FormatInterpolator<'f>),
+}
+
+impl<'f> StrEnum<'f> {
+    fn new(string: &'f str) -> Self {
+        match VARIABLE_RE.captures(string){
+            None=>Self::RawStr(string),
+            Some(captures)=>{
+                None
+            }
+        }
+    }
+}
+
+impl<'f> ToTokens for StrEnum<'f> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::RawStr(string) => tokens.extend(quote! {#string}),
+            Self::Format(fmt) => tokens.extend(quote! {r#"format!("{}")"#}),
+        }
+    }
+}
+
+struct FormatInterpolator<'f> {
+    format: String,
+    args: Vec<FormatArg<'f>>,
+}
+
+struct FormatArg<'f> {
+    name: &'f str,
+    ty: &'f str,
 }
