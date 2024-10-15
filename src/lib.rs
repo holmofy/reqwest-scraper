@@ -24,7 +24,7 @@ use error::ScraperError;
 use mime::Mime;
 pub use reqwest::Response;
 
-pub use reqwest_scraper_macros::{FromCssSelector, FromXPath};
+pub use reqwest_scraper_macros::{FromCssSelector, FromXPath, include_http};
 
 /// Use XPath to extract the HTML response body into the derived struct
 #[cfg(feature = "xpath")]

@@ -15,7 +15,7 @@ pub fn expand_macro(file_path: String) -> syn::Result<TokenStream> {
 
     let requests = parse_http_file(&http_content);
 
-    Ok(expanded)
+    Ok(quote!{#(#requests)*})
 }
 
 lazy_static! {
