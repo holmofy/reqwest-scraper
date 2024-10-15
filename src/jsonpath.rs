@@ -5,6 +5,7 @@ use jsonpath_lib as jsonpath;
 use serde::de::DeserializeOwned;
 
 /// Json Response
+#[derive(Debug)]
 pub struct Json {
     value: serde_json::Value,
 }

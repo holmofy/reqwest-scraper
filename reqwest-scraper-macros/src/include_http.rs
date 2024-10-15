@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use regex::Regex;
-use syn::Ident;
+use syn::{Ident, Type};
 
 pub fn expand_macro(file_path: String) -> syn::Result<TokenStream> {
     let http_content = std::fs::read_to_string(&file_path).map_err(move |e| {
@@ -15,7 +15,7 @@ pub fn expand_macro(file_path: String) -> syn::Result<TokenStream> {
     })?;
 
     let requests = parse_http_file(&http_content);
-    eprintln!("request count: {}", requests.len());
+
     Ok(quote! {#(#requests)*})
 }
 
@@ -23,7 +23,7 @@ lazy_static! {
     static ref SNIPPET_SPLITTER: Regex = Regex::new(r"#{3,}").unwrap();
     static ref HTTP_RE: Regex = Regex::new(r"(?<name>\w+)\n(?<method>GET|POST|HEAD|PUT|DELETE|PATCH|HEAD|OPTIONS|TRACE)\s*(?<url>https?://\S+)(?:\n(?<headers>(?:\S+:\s+[^\n]+\n)*)\n?(?<body>[\s\S]*))?").unwrap();
     static ref HEADER_RE: Regex = Regex::new(r"(?<key>\S+):\s*(?<value>[^\n]+)").unwrap();
-    static ref VARIABLE_RE: Regex = Regex::new(r"{{(?<ident>\w+)(?::\s*(?<ty>\w+))?}}").unwrap();
+    static ref VARIABLE_RE: Regex = Regex::new(r"\{(?<ident>\w+)(?::\s*(?<ty>\w+))?\}").unwrap();
 }
 
 fn parse_http_file(content: &str) -> Vec<HttpRequestFn> {
@@ -40,16 +40,24 @@ fn parse_http(content: &str) -> Vec<HttpRequestFn> {
     let mut request_fns = vec![];
     eprintln!("content: {content}");
     for caps in HTTP_RE.captures_iter(content) {
-        let name = caps.name("name").unwrap().as_str();
-        let method = caps.name("method").unwrap().as_str();
-        let url = caps.name("url").unwrap().as_str();
+        let name = caps
+            .name("name")
+            .expect("Method name is not defined")
+            .as_str();
+        let method = caps
+            .name("method")
+            .expect("Http method is not defined")
+            .as_str();
+        let url = caps.name("url").expect("url is not defined").as_str();
 
-        eprintln!(">>>pared>>>>>{name}: {method} {url}");
         let mut headers = HashMap::new();
         if let Some(headers_str) = caps.name("headers") {
             for caps in HEADER_RE.captures_iter(headers_str.as_str()) {
-                let key = caps.name("key").unwrap().as_str();
-                let value = caps.name("value").unwrap().as_str();
+                let key = caps
+                    .name("key")
+                    .expect("Http header key is not defined")
+                    .as_str();
+                let value = caps.name("value").map(|m| m.as_str()).unwrap_or("");
                 headers.insert(key, StrEnum::new(value));
             }
         }
@@ -81,12 +89,34 @@ struct HttpRequest<'f> {
     body: Option<StrEnum<'f>>,
 }
 
+impl<'f> HttpRequest<'f> {
+    fn collect_args(&self) -> Vec<FormatArg> {
+        let Self {
+            url, headers, body, ..
+        } = self;
+        let mut args = vec![];
+        if let StrEnum::Format(fmt) = url {
+            args.extend(fmt.args.clone());
+        }
+        for (_, value) in headers {
+            if let StrEnum::Format(fmt) = value {
+                args.extend(fmt.args.clone());
+            }
+        }
+        if let Some(StrEnum::Format(fmt)) = body {
+            args.extend(fmt.args.clone());
+        }
+        args
+    }
+}
+
 impl<'f> ToTokens for HttpRequestFn<'f> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let Self { name, request } = self;
         let method_name_ident = Ident::new(name, Span::call_site());
+        let args = request.collect_args();
         tokens.extend(quote! {
-            pub async fn #method_name_ident() -> Result<reqwest::Response, reqwest::Error> {
+            pub async fn #method_name_ident(#(#args),*) -> ::std::result::Result<::reqwest::Response, ::reqwest::Error> {
                 #request
             }
         });
@@ -121,10 +151,23 @@ enum StrEnum<'f> {
 
 impl<'f> StrEnum<'f> {
     fn new(string: &'f str) -> Self {
-        match VARIABLE_RE.captures(string){
-            None=>Self::RawStr(string),
-            Some(captures)=>{
-                None
+        match VARIABLE_RE.captures(string) {
+            None => Self::RawStr(string),
+            Some(_) => {
+                let mut fmt = String::with_capacity(string.len());
+                let mut args = vec![];
+                let mut last_match = 0;
+                for caps in VARIABLE_RE.captures_iter(string) {
+                    let matched = caps.get(0).unwrap();
+                    let name = caps.name("ident").unwrap().as_str();
+                    let ty = caps.name("ty").map(|ty| ty.as_str());
+                    fmt.push_str(&string[last_match..matched.start()]);
+                    fmt.push_str(&format!(r"{{{name}}}"));
+                    args.push(FormatArg { name, ty });
+                    last_match = matched.end();
+                }
+                fmt.push_str(&string[last_match..]);
+                Self::Format(FormatInterpolator { fmt, args })
             }
         }
     }
@@ -134,17 +177,28 @@ impl<'f> ToTokens for StrEnum<'f> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::RawStr(string) => tokens.extend(quote! {#string}),
-            Self::Format(fmt) => tokens.extend(quote! {r#"format!("{}")"#}),
+            Self::Format(FormatInterpolator { fmt, .. }) => tokens.extend(quote! {format!(#fmt)}),
         }
     }
 }
 
 struct FormatInterpolator<'f> {
-    format: String,
+    fmt: String,
     args: Vec<FormatArg<'f>>,
 }
 
+#[derive(Debug, Clone, Copy)]
 struct FormatArg<'f> {
     name: &'f str,
-    ty: &'f str,
+    ty: Option<&'f str>,
+}
+
+impl<'f> ToTokens for FormatArg<'f> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let Self { name, ty } = self;
+        let name = Ident::new(name, Span::call_site());
+        let ty = ty.unwrap_or("&str");
+        let ty: Type = syn::parse_str(ty).expect(&format!("type is invalid: {ty}"));
+        tokens.extend(quote! {#name: #ty});
+    }
 }

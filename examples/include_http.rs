@@ -1,7 +1,10 @@
-use reqwest_scraper::include_http;
+use reqwest_scraper::{error::Result, include_http, ScraperResponse};
 
 include_http!("examples/example.http");
 
-fn main(){
-    
+#[tokio::main]
+async fn main() -> Result<()> {
+    let json = papers(20).await?.jsonpath().await?;
+    println!("{:?}", json);
+    Ok(())
 }
