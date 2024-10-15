@@ -114,3 +114,7 @@ impl<'f> ToTokens for HttpRequest<'f> {
         tokens.extend(quote! {.send().await})
     }
 }
+
+struct FormatInterpolator {
+    
+}
