@@ -1,0 +1,19 @@
+### course_set_list_all
+GET https://tiku.fenbi.com/api/xingce/course_set_list_all
+
+### courses
+GET https://tiku.fenbi.com/api/jinrong/courses
+
+### papers
+GET https://tiku.fenbi.com/api/xingce/papers/?toPage=0&pageSize=15&app=web&kav=100&av=100&hav=100&version=3.0.0.0
+Cookie: acw_tc=0b6e703e16784622437952350ec71e6442dd0287612884acf50c5c0b918e57
+
+### login
+POST https://login.fenbi.com/api/users/loginV2?app=web&kav=12&av=80&version=3.0.0.0
+Accept: application/json, text/plain, */*
+Connection: keep-alive
+Content-Type: application/x-www-form-urlencoded;charset=UTF-8
+Origin: https://www.fenbi.com
+Referer: https://www.fenbi.com/
+
+phone=18720232389&password=qqDBMIC6dKi8RD0lzfaQbpqgTage3mAhQvTbR1DWkHx%2FoU6uAE0wD08U%2B3pWY0KLH8y9jSEx64TYpBTPVlj2MUVc2b4L7PEfOgAC08QBhXcT4CNlqMLkEJFzYwE%2BaO4Pt4W7yX1yQ%2F6F20Mifk8KqyNnqTyPfhkxxIQHPRkfbGA%3D
