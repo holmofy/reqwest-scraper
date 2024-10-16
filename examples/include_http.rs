@@ -1,6 +1,11 @@
+use reqwest::Client;
 use reqwest_scraper::{error::Result, include_http, ScraperResponse};
 
-include_http!("examples/example.http");
+fn client() -> Client{
+    Client::new()
+}
+
+include_http!("examples/example.http", client);
 
 #[tokio::main]
 async fn main() -> Result<()> {

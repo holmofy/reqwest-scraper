@@ -1,12 +1,15 @@
-use std::collections::HashMap;
-
 use lazy_static::lazy_static;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use regex::Regex;
-use syn::{Ident, Type};
+use std::collections::HashMap;
+use syn::{Ident, LitStr, Token, Type};
 
-pub fn expand_macro(file_path: String) -> syn::Result<TokenStream> {
+pub fn expand_macro(input: IncludeHttp) -> syn::Result<TokenStream> {
+    let IncludeHttp {
+        file_path,
+        client_supplier,
+    } = input;
     let http_content = std::fs::read_to_string(&file_path).map_err(move |e| {
         syn::Error::new(
             Span::call_site(),
@@ -14,9 +17,44 @@ pub fn expand_macro(file_path: String) -> syn::Result<TokenStream> {
         )
     })?;
 
-    let requests = parse_http_file(&http_content);
+    let requests = parse_http_file(&http_content, &client_supplier);
 
     Ok(quote! {#(#requests)*})
+}
+
+pub struct IncludeHttp {
+    file_path: String,
+    client_supplier: Option<Ident>,
+}
+
+impl syn::parse::Parse for IncludeHttp {
+    fn parse(args: syn::parse::ParseStream) -> syn::Result<Self> {
+        let op = |mut err: syn::Error| {
+            err.combine(syn::Error::new(
+                err.span(),
+                r#"invalid include_http args, expected include_http("<file_path>", [client_supplier])]"#,
+            ));
+
+            err
+        };
+        let file_path = args.parse::<LitStr>().map_err(op)?.value();
+
+        if !args.peek(Token![,]) {
+            return Ok(Self {
+                file_path,
+                client_supplier: None,
+            });
+        }
+
+        args.parse::<Token![,]>()?;
+
+        let client_supplier = args.parse::<Ident>().map_err(op)?;
+
+        Ok(Self {
+            file_path,
+            client_supplier: Some(client_supplier),
+        })
+    }
 }
 
 lazy_static! {
@@ -26,17 +64,23 @@ lazy_static! {
     static ref VARIABLE_RE: Regex = Regex::new(r"\{(?<ident>\w+)(?::\s*(?<ty>\w+))?\}").unwrap();
 }
 
-fn parse_http_file(content: &str) -> Vec<HttpRequestFn> {
+fn parse_http_file<'f, 'c>(
+    content: &'f str,
+    client_supplier: &'c Option<Ident>,
+) -> Vec<HttpRequestFn<'f, 'c>> {
     let snippets: Vec<&str> = SNIPPET_SPLITTER.split(content).collect();
     snippets
         .into_iter()
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
-        .flat_map(parse_http)
+        .flat_map(|s| parse_http(s, client_supplier))
         .collect()
 }
 
-fn parse_http(content: &str) -> Vec<HttpRequestFn> {
+fn parse_http<'f, 'c>(
+    content: &'f str,
+    client_supplier: &'c Option<Ident>,
+) -> Vec<HttpRequestFn<'f, 'c>> {
     let mut request_fns = vec![];
     for caps in HTTP_RE.captures_iter(content) {
         let name = caps
@@ -65,6 +109,7 @@ fn parse_http(content: &str) -> Vec<HttpRequestFn> {
         let body = caps.name("body").map(|b| b.as_str());
         request_fns.push(HttpRequestFn {
             name,
+            client_supplier,
             request: HttpRequest {
                 method,
                 url: StrEnum::new(url),
@@ -76,8 +121,9 @@ fn parse_http(content: &str) -> Vec<HttpRequestFn> {
     request_fns
 }
 
-struct HttpRequestFn<'f> {
+struct HttpRequestFn<'f, 'c> {
     name: &'f str,
+    client_supplier: &'c Option<Ident>,
     request: HttpRequest<'f>,
 }
 
@@ -109,13 +155,22 @@ impl<'f> HttpRequest<'f> {
     }
 }
 
-impl<'f> ToTokens for HttpRequestFn<'f> {
+impl<'f, 'c> ToTokens for HttpRequestFn<'f, 'c> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let Self { name, request } = self;
+        let Self {
+            name,
+            client_supplier,
+            request,
+        } = self;
         let method_name_ident = Ident::new(name, Span::call_site());
         let args = request.collect_args();
+        let client = match client_supplier {
+            None => quote! {let client = reqwest::Client::new();},
+            Some(supplier) => quote! {let client = #supplier();},
+        };
         tokens.extend(quote! {
             pub async fn #method_name_ident(#(#args),*) -> ::std::result::Result<::reqwest::Response, ::reqwest::Error> {
+                #client
                 #request
             }
         });
@@ -132,7 +187,7 @@ impl<'f> ToTokens for HttpRequest<'f> {
         } = self;
         let method = method.to_lowercase();
         let method_ident = Ident::new(&method, Span::call_site());
-        tokens.extend(quote! {reqwest::Client::new().#method_ident(#url)});
+        tokens.extend(quote! {client.#method_ident(#url)});
         for (key, value) in headers {
             tokens.extend(quote! {.header(#key, #value)});
         }
