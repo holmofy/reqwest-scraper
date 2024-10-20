@@ -215,7 +215,12 @@ impl<'f> StrEnum<'f> {
                     let matched = caps.get(0).unwrap();
                     let name = caps.name("ident").unwrap().as_str();
                     let ty = caps.name("ty").map(|ty| ty.as_str());
-                    fmt.push_str(&string[last_match..matched.start()]);
+                    // format!转义，要保留原始{}，得{{}}
+                    fmt.push_str(
+                        &string[last_match..matched.start()]
+                            .replace("{", "{{")
+                            .replace("}", "}}"),
+                    );
                     fmt.push_str(&format!(r"{{{name}}}"));
                     args.push(FormatArg { name, ty });
                     last_match = matched.end();
