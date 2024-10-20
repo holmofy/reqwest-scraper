@@ -225,7 +225,7 @@ impl<'f> StrEnum<'f> {
                     args.push(FormatArg { name, ty });
                     last_match = matched.end();
                 }
-                fmt.push_str(&string[last_match..]);
+                fmt.push_str(&string[last_match..].replace("{", "{{").replace("}", "}}"));
                 Self::Format(FormatInterpolator { fmt, args })
             }
         }
