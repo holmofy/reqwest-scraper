@@ -1,6 +1,6 @@
 [package]
 name = "reqwest-scraper-macros"
-version = "0.5.3"
+version = "0.5.4"
 edition = "2021"
 description = "Web scraping integration with reqwest"
 license = "MIT"
