@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use regex::Regex;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use syn::{Ident, LitStr, Token, Type};
 
 pub fn expand_macro(input: IncludeHttp) -> syn::Result<TokenStream> {
@@ -151,7 +151,8 @@ impl<'f> HttpRequest<'f> {
         if let Some(StrEnum::Format(fmt)) = body {
             args.extend(fmt.args.clone());
         }
-        args
+        let set: HashSet<_> = args.drain(..).collect();
+        set.into_iter().collect()
     }
 }
 
@@ -246,7 +247,7 @@ struct FormatInterpolator<'f> {
     args: Vec<FormatArg<'f>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 struct FormatArg<'f> {
     name: &'f str,
     ty: Option<&'f str>,
