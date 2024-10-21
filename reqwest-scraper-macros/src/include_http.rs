@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use regex::Regex;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use syn::{Ident, LitStr, Token, Type};
 
 pub fn expand_macro(input: IncludeHttp) -> syn::Result<TokenStream> {
@@ -141,18 +141,30 @@ impl<'f> HttpRequest<'f> {
         } = self;
         let mut args = vec![];
         if let StrEnum::Format(fmt) = url {
-            args.extend(fmt.args.clone());
+            args = Self::push_while_unique_name(args, fmt);
         }
         for (_, value) in headers {
             if let StrEnum::Format(fmt) = value {
-                args.extend(fmt.args.clone());
+                args = Self::push_while_unique_name(args, fmt);
             }
         }
         if let Some(StrEnum::Format(fmt)) = body {
-            args.extend(fmt.args.clone());
+            args = Self::push_while_unique_name(args, fmt);
         }
-        let set: HashSet<_> = args.drain(..).collect();
-        set.into_iter().collect()
+        args
+    }
+
+    fn push_while_unique_name(
+        mut args: Vec<FormatArg<'f>>,
+        fmt: &FormatInterpolator<'f>,
+    ) -> Vec<FormatArg<'f>> {
+        for fmg_args in &fmt.args {
+            if args.iter().any(|a| a.name == fmg_args.name) {
+                continue;
+            }
+            args.push(fmg_args.clone());
+        }
+        args
     }
 }
 
@@ -247,7 +259,7 @@ struct FormatInterpolator<'f> {
     args: Vec<FormatArg<'f>>,
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 struct FormatArg<'f> {
     name: &'f str,
     ty: Option<&'f str>,
