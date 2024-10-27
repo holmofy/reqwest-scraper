@@ -59,7 +59,7 @@ impl syn::parse::Parse for IncludeHttp {
 
 lazy_static! {
     static ref SNIPPET_SPLITTER: Regex = Regex::new(r"#{3,}").unwrap();
-    static ref HTTP_RE: Regex = Regex::new(r"(?<name>\w+)\n(?<method>GET|POST|HEAD|PUT|DELETE|PATCH|HEAD|OPTIONS|TRACE)\s*(?<url>https?://\S+)(?:\s+HTTP/[\d.]+)?(?:\n(?<headers>(?:\S+:\s+[^\n]+\n)*)(?<body>\n[\s\S]*))?").unwrap();
+    static ref HTTP_RE: Regex = Regex::new(r"(?<name>\w+)\n(?<method>GET|POST|HEAD|PUT|DELETE|PATCH|HEAD|OPTIONS|TRACE)\s*(?<url>https?://\S+)(?:\s+HTTP/[\d.]+)?(?:\n(?<headers>(?:\S+:\s+[^\n]+\n)*)(?:\n(?<body>[\s\S]*))?)?").unwrap();
     static ref HEADER_RE: Regex = Regex::new(r"(?<key>\S+):\s*(?<value>[^\n]+)").unwrap();
     static ref VARIABLE_RE: Regex = Regex::new(r"\{(?<ident>\w+)(?::\s*(?<ty>\w+))?\}").unwrap();
 }
@@ -211,6 +211,7 @@ impl<'f> ToTokens for HttpRequest<'f> {
     }
 }
 
+#[derive(Debug, Clone)]
 enum StrEnum<'f> {
     RawStr(&'f str),
     Format(FormatInterpolator<'f>),
@@ -254,6 +255,7 @@ impl<'f> ToTokens for StrEnum<'f> {
     }
 }
 
+#[derive(Debug, Clone)]
 struct FormatInterpolator<'f> {
     fmt: String,
     args: Vec<FormatArg<'f>>,
@@ -273,4 +275,93 @@ impl<'f> ToTokens for FormatArg<'f> {
         let ty: Type = syn::parse_str(ty).expect(&format!("type is invalid: {ty}"));
         tokens.extend(quote! {#name: #ty});
     }
+}
+
+#[test]
+fn test_parse_http() {
+    let req = r####"
+### request_baidu
+GET https://www.baidu.com
+"####;
+    let http = parse_http(&req, &None);
+    assert_eq!(http.len(), 1);
+    let req = http.get(0).unwrap();
+    assert_eq!(req.name, "request_baidu");
+    assert_eq!(req.request.method, "GET");
+
+    assert_eq!(
+        match req.request.url {
+            StrEnum::RawStr(url) => url,
+            StrEnum::Format(_) => "fmt",
+        },
+        "https://www.baidu.com"
+    );
+
+    let req = r####"
+###//comment
+### request_baidu
+GET https://www.baidu.com/s?kw=xxx
+User-Agent: reqwest
+"####;
+    let http = parse_http(&req, &None);
+    assert_eq!(http.len(), 1);
+    let req = http.get(0).unwrap();
+    assert_eq!(req.name, "request_baidu");
+    let request = &req.request;
+    assert_eq!(request.method, "GET");
+    assert_eq!(
+        match request
+            .headers
+            .get("User-Agent")
+            .expect("User-Agent not exists")
+        {
+            StrEnum::RawStr(agent) => agent,
+            StrEnum::Format(_) => "fmt",
+        },
+        "reqwest"
+    );
+
+    let req = r####"
+###//comment
+### request_baidu
+GET https://www.baidu.com/s?kw=xxx
+User-Agent: reqwest
+Content-Type:   application/json
+
+{"body":"msg"}
+"####;
+    let http = parse_http(&req, &None);
+    assert_eq!(http.len(), 1);
+    let req = http.get(0).unwrap();
+    assert_eq!(req.name, "request_baidu");
+    let request = &req.request;
+    assert_eq!(request.method, "GET");
+    let headers = &request.headers;
+    assert_eq!(
+        match headers.get("User-Agent").expect("User-Agent not exists") {
+            StrEnum::RawStr(agent) => agent,
+            StrEnum::Format(_) => "fmt",
+        },
+        "reqwest"
+    );
+    assert_eq!(
+        match headers
+            .get("Content-Type")
+            .expect("Content-Type not exists")
+        {
+            StrEnum::RawStr(agent) => agent,
+            StrEnum::Format(_) => "fmt",
+        },
+        "application/json"
+    );
+
+    let body = request.body.clone();
+    assert_eq!(
+        match body.clone().expect("body not exists") {
+            StrEnum::RawStr(body) => body,
+            StrEnum::Format(_) => "fmt",
+        },
+        r#"{"body":"msg"}
+"#
+    )
 }

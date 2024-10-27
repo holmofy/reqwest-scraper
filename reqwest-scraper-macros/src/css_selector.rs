@@ -1,10 +1,9 @@
-use std::str::FromStr;
-
 use crate::utils::syn::{get_type_detail, PathType};
 use darling::{ast::Data, util::Flag, FromDeriveInput, FromField, FromMeta};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use scraper::Selector;
+use std::str::FromStr;
 use syn::{spanned::Spanned, DeriveInput, Error, Result};
 
 #[derive(Debug)]
