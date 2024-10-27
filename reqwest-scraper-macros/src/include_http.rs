@@ -302,6 +302,7 @@ GET https://www.baidu.com
 ### request_baidu
 GET https://www.baidu.com/s?kw=xxx
 User-Agent: reqwest
+token: xxxx1234ABCD
 "####;
     let http = parse_http(&req, &None);
     assert_eq!(http.len(), 1);
@@ -319,6 +320,17 @@ User-Agent: reqwest
             StrEnum::Format(_) => "fmt",
         },
         "reqwest"
+    );
+    assert_eq!(
+        match request
+            .headers
+            .get("token")
+            .expect("token not exists")
+        {
+            StrEnum::RawStr(agent) => agent,
+            StrEnum::Format(_) => "fmt",
+        },
+        "xxxx1234ABCD"
     );
 
     let req = r####"
