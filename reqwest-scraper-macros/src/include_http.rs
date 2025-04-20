@@ -9,13 +9,33 @@ pub fn expand_macro(input: IncludeHttp) -> syn::Result<TokenStream> {
     let IncludeHttp {
         file_path,
         client_supplier,
+        variables,
     } = input;
-    let http_content = std::fs::read_to_string(&file_path).map_err(move |e| {
+    let mut http_content = std::fs::read_to_string(&file_path).map_err(move |e| {
         syn::Error::new(
             Span::call_site(),
             format!("Failed to read {file_path}: {e}"),
         )
     })?;
+
+    if let Some(punctuated) = variables {
+        for pair in punctuated {
+            let path = &pair.path;
+            let value = &pair.value;
+            let key = format!("{{{}}}", quote::quote!(#path).to_string());
+            let value = match value {
+                syn::Expr::Lit(expr_lit) => {
+                    if let syn::Lit::Str(ref lit_str) = expr_lit.lit {
+                        lit_str.value()
+                    } else {
+                        "".to_string()
+                    }
+                }
+                _ => "".to_string(),
+            };
+            http_content = http_content.replace(&key, &value);
+        }
+    }
 
     let requests = parse_http_file(&http_content, &client_supplier);
 
@@ -25,6 +45,7 @@ pub fn expand_macro(input: IncludeHttp) -> syn::Result<TokenStream> {
 pub struct IncludeHttp {
     file_path: String,
     client_supplier: Option<Ident>,
+    variables: Option<syn::punctuated::Punctuated<syn::MetaNameValue, syn::token::Comma>>,
 }
 
 impl syn::parse::Parse for IncludeHttp {
@@ -32,7 +53,7 @@ impl syn::parse::Parse for IncludeHttp {
         let op = |mut err: syn::Error| {
             err.combine(syn::Error::new(
                 err.span(),
-                r#"invalid include_http args, expected include_http("<file_path>", [client_supplier])]"#,
+                r#"invalid include_http args, expected include_http("<file_path>", [client_supplier], {[variable1=value]...})"#,
             ));
 
             err
@@ -43,16 +64,37 @@ impl syn::parse::Parse for IncludeHttp {
             return Ok(Self {
                 file_path,
                 client_supplier: None,
+                variables: None,
             });
         }
 
-        args.parse::<Token![,]>()?;
+        args.parse::<Token![,]>().map_err(op)?;
 
-        let client_supplier = args.parse::<Ident>().map_err(op)?;
+        let client_supplier = if args.peek(syn::Ident) {
+            let client_supplier = args.parse::<syn::Ident>().map_err(op)?;
 
+            if !args.peek(Token![,]) {
+                return Ok(Self {
+                    file_path,
+                    client_supplier: Some(client_supplier),
+                    variables: None,
+                });
+            }
+            args.parse::<Token![,]>().map_err(op)?;
+            Some(client_supplier)
+        } else {
+            None
+        };
+        let variables;
+        syn::braced!(variables in args);
+        // zero or more options: name = "foo"
+        let variables = variables
+            .parse_terminated(syn::MetaNameValue::parse, Token![,])
+            .map_err(op)?;
         Ok(Self {
             file_path,
-            client_supplier: Some(client_supplier),
+            client_supplier,
+            variables: Some(variables),
         })
     }
 }
@@ -322,11 +364,7 @@ token: xxxx1234ABCD
         "reqwest"
     );
     assert_eq!(
-        match request
-            .headers
-            .get("token")
-            .expect("token not exists")
-        {
+        match request.headers.get("token").expect("token not exists") {
             StrEnum::RawStr(agent) => agent,
             StrEnum::Format(_) => "fmt",
         },
