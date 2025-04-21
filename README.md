@@ -17,8 +17,8 @@ Extends [reqwest](https://github.com/seanmonstar/reqwest) to support multiple we
 
 * add dependency
     ```toml
-    reqwest = { version = "0.12", features = ["json"] }
-    reqwest-scraper="0.3.2"
+    reqwest = { version = "<version>", features = ["json"] }
+    reqwest-scraper= <version>
     ```
 * use ScraperResponse
     ```rust
