@@ -11,18 +11,21 @@ pub fn expand_macro(input: IncludeHttp) -> syn::Result<TokenStream> {
         client_supplier,
         variables,
     } = input;
-    let mut http_content = std::fs::read_to_string(&file_path).map_err(move |e| {
+    let raw_file_content = std::fs::read_to_string(&file_path).map_err(move |e| {
         syn::Error::new(
             Span::call_site(),
             format!("Failed to read {file_path}: {e}"),
         )
     })?;
 
+    let mut http_content = parse_and_substitute(&raw_file_content);
+
+    // 2. 追加宏里的变量定义
     if let Some(punctuated) = variables {
         for pair in punctuated {
             let path = &pair.path;
             let value = &pair.value;
-            let key = format!("{{{}}}", quote::quote!(#path).to_string());
+            let key = format!("{{{{{}}}}}", quote::quote!(#path).to_string());
             let value = match value {
                 syn::Expr::Lit(expr_lit) => {
                     if let syn::Lit::Str(ref lit_str) = expr_lit.lit {
@@ -31,7 +34,12 @@ pub fn expand_macro(input: IncludeHttp) -> syn::Result<TokenStream> {
                         "".to_string()
                     }
                 }
-                _ => "".to_string(),
+                _ => {
+                    return Err(syn::Error::new_spanned(
+                        value,
+                        "only string literal values are supported",
+                    ))
+                }
             };
             http_content = http_content.replace(&key, &value);
         }
@@ -40,6 +48,63 @@ pub fn expand_macro(input: IncludeHttp) -> syn::Result<TokenStream> {
     let requests = parse_http_file(&http_content, &client_supplier);
 
     Ok(quote! {#(#requests)*})
+}
+
+// 替换@variable变量
+fn parse_and_substitute(input: &str) -> String {
+    let var_def_re = Regex::new(r"(?m)^@(\w+)\s*=\s*(.+)$").unwrap();
+    let var_use_re = Regex::new(r"\{\{(\w+)\}\}").unwrap();
+
+    let mut vars = HashMap::new();
+
+    // 1. 提取所有变量定义
+    for cap in var_def_re.captures_iter(&input) {
+        let key = cap[1].to_string();
+        let value = cap[2].trim().to_string();
+        vars.insert(key, value);
+    }
+
+    // 2. 递归展开变量值
+    fn resolve_var(
+        key: &str,
+        vars: &HashMap<String, String>,
+        resolving: &mut Vec<String>,
+    ) -> String {
+        if resolving.contains(&key.to_string()) {
+            return format!("{{{{{}}}}}", key); // 防止循环引用
+        }
+        if let Some(val) = vars.get(key) {
+            resolving.push(key.to_string());
+            let resolved = Regex::new(r"\{\{(\w+)\}\}")
+                .unwrap()
+                .replace_all(val, |caps: &regex::Captures| {
+                    let inner_key = &caps[1];
+                    resolve_var(inner_key, vars, resolving)
+                })
+                .to_string();
+            resolving.pop();
+            resolved
+        } else {
+            format!("{{{{{}}}}}", key)
+        }
+    }
+
+    let resolved_vars: HashMap<_, _> = vars
+        .keys()
+        .map(|k| (k.clone(), resolve_var(k, &vars, &mut vec![])))
+        .collect();
+
+    // 3. 替换正文中的 {{变量}}
+    let input_without_defs = var_def_re.replace_all(&input, "").to_string();
+    let http_content = var_use_re.replace_all(&input_without_defs, |caps: &regex::Captures| {
+        let key = &caps[1];
+        resolved_vars
+            .get(key)
+            .cloned()
+            .unwrap_or_else(|| format!("{{{{{}}}}}", key))
+    });
+
+    http_content.to_string()
 }
 
 pub struct IncludeHttp {
@@ -100,10 +165,14 @@ impl syn::parse::Parse for IncludeHttp {
 }
 
 lazy_static! {
-    static ref SNIPPET_SPLITTER: Regex = Regex::new(r"#{3,}").unwrap();
+    // HTTP片段分割标识
+    static ref SNIPPET_SPLITTER: Regex = Regex::new(r"#{3,}\s*@?").unwrap();
+    // Http Request
     static ref HTTP_RE: Regex = Regex::new(r"(?<name>\w+)\n(?<method>GET|POST|HEAD|PUT|DELETE|PATCH|HEAD|OPTIONS|TRACE)\s*(?<url>https?://\S+)(?:\s+HTTP/[\d.]+)?(?:\n(?<headers>(?:\S+:\s+[^\n]+\n)*)(?:\n(?<body>[\s\S]*))?)?").unwrap();
+    // Http header
     static ref HEADER_RE: Regex = Regex::new(r"(?<key>\S+):\s*(?<value>[^\n]+)").unwrap();
-    static ref VARIABLE_RE: Regex = Regex::new(r"\{(?<ident>\w+)(?::\s*(?<ty>\w+))?\}").unwrap();
+    // 变量插值
+    static ref VARIABLE_RE: Regex = Regex::new(r"\{\{(?<env>\$)?(?<ident>\w+)(?::\s*(?<ty>\w+))?\}\}").unwrap();
 }
 
 fn parse_http_file<'f, 'c>(
@@ -183,30 +252,62 @@ impl<'f> HttpRequest<'f> {
         } = self;
         let mut args = vec![];
         if let StrEnum::Format(fmt) = url {
-            args = Self::push_while_unique_name(args, fmt);
+            args = Self::push_arg_while_unique_name(args, fmt);
         }
         for (_, value) in headers {
             if let StrEnum::Format(fmt) = value {
-                args = Self::push_while_unique_name(args, fmt);
+                args = Self::push_arg_while_unique_name(args, fmt);
             }
         }
         if let Some(StrEnum::Format(fmt)) = body {
-            args = Self::push_while_unique_name(args, fmt);
+            args = Self::push_arg_while_unique_name(args, fmt);
         }
         args
     }
 
-    fn push_while_unique_name(
+    fn push_arg_while_unique_name(
         mut args: Vec<FormatArg<'f>>,
         fmt: &FormatInterpolator<'f>,
     ) -> Vec<FormatArg<'f>> {
-        for fmg_args in &fmt.args {
-            if args.iter().any(|a| a.name == fmg_args.name) {
+        for fmt_args in &fmt.args {
+            if args.iter().any(|a| a.name == fmt_args.name) {
                 continue;
             }
-            args.push(fmg_args.clone());
+            args.push(fmt_args.clone());
         }
         args
+    }
+
+    fn collect_envs(&self) -> Vec<EnvVariable> {
+        let Self {
+            url, headers, body, ..
+        } = self;
+        let mut envs = vec![];
+        if let StrEnum::Format(fmt) = url {
+            envs = Self::push_env_while_unique_name(envs, fmt);
+        }
+        for (_, value) in headers {
+            if let StrEnum::Format(fmt) = value {
+                envs = Self::push_env_while_unique_name(envs, fmt);
+            }
+        }
+        if let Some(StrEnum::Format(fmt)) = body {
+            envs = Self::push_env_while_unique_name(envs, fmt);
+        }
+        envs
+    }
+
+    fn push_env_while_unique_name(
+        mut envs: Vec<EnvVariable<'f>>,
+        fmt: &FormatInterpolator<'f>,
+    ) -> Vec<EnvVariable<'f>> {
+        for fmt_env in &fmt.envs {
+            if envs.iter().any(|a| a.name == fmt_env.name) {
+                continue;
+            }
+            envs.push(fmt_env.clone());
+        }
+        envs
     }
 }
 
@@ -219,6 +320,7 @@ impl<'f, 'c> ToTokens for HttpRequestFn<'f, 'c> {
         } = self;
         let method_name_ident = Ident::new(name, Span::call_site());
         let args = request.collect_args();
+        let envs = request.collect_envs();
         let client = match client_supplier {
             None => quote! {let client = reqwest::Client::new();},
             Some(supplier) => quote! {let client = #supplier();},
@@ -226,6 +328,7 @@ impl<'f, 'c> ToTokens for HttpRequestFn<'f, 'c> {
         tokens.extend(quote! {
             pub async fn #method_name_ident(#(#args),*) -> ::std::result::Result<::reqwest::Response, ::reqwest::Error> {
                 #client
+                #(#envs)*
                 #request
             }
         });
@@ -266,23 +369,36 @@ impl<'f> StrEnum<'f> {
             Some(_) => {
                 let mut fmt = String::with_capacity(string.len());
                 let mut args = vec![];
+                let mut envs = vec![];
                 let mut last_match = 0;
                 for caps in VARIABLE_RE.captures_iter(string) {
                     let matched = caps.get(0).unwrap();
-                    let name = caps.name("ident").unwrap().as_str();
-                    let ty = caps.name("ty").map(|ty| ty.as_str());
-                    // format!转义，要保留原始{}，得{{}}
-                    fmt.push_str(
-                        &string[last_match..matched.start()]
-                            .replace("{", "{{")
-                            .replace("}", "}}"),
-                    );
-                    fmt.push_str(&format!(r"{{{name}}}"));
-                    args.push(FormatArg { name, ty });
+                    match caps.name("env") {
+                        Some(_) => {
+                            let name = caps.name("ident").unwrap().as_str();
+                            let default_value = caps.name("ty").map(|ty| ty.as_str());
+                            envs.push(EnvVariable {
+                                name,
+                                default_value,
+                            });
+                        }
+                        None => {
+                            let name = caps.name("ident").unwrap().as_str();
+                            let ty = caps.name("ty").map(|ty| ty.as_str());
+                            // format!转义，要保留原始{}，得{{}}
+                            fmt.push_str(
+                                &string[last_match..matched.start()]
+                                    .replace("{", "{{")
+                                    .replace("}", "}}"),
+                            );
+                            fmt.push_str(&format!(r"{{{name}}}"));
+                            args.push(FormatArg { name, ty });
+                        }
+                    }
                     last_match = matched.end();
                 }
                 fmt.push_str(&string[last_match..].replace("{", "{{").replace("}", "}}"));
-                Self::Format(FormatInterpolator { fmt, args })
+                Self::Format(FormatInterpolator { fmt, args, envs })
             }
         }
     }
@@ -301,6 +417,7 @@ impl<'f> ToTokens for StrEnum<'f> {
 struct FormatInterpolator<'f> {
     fmt: String,
     args: Vec<FormatArg<'f>>,
+    envs: Vec<EnvVariable<'f>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -319,59 +436,91 @@ impl<'f> ToTokens for FormatArg<'f> {
     }
 }
 
-#[test]
-fn test_parse_http() {
-    let req = r####"
+#[derive(Debug, Clone, Copy)]
+struct EnvVariable<'f> {
+    name: &'f str,
+    default_value: Option<&'f str>,
+}
+
+impl<'f> ToTokens for EnvVariable<'f> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let Self {
+            name,
+            default_value,
+        } = self;
+        let variable_name = name;
+        let name = Ident::new(&name.to_lowercase(), Span::call_site());
+        match default_value {
+            Some(default_value) => {
+                tokens.extend(quote! {
+                    let #name = std::env::var(#variable_name).ok().unwrap_or_else(||#default_value.to_string());
+                });
+            }
+            None => {
+                tokens.extend(
+                    quote! { let #name = ::std::env::var(#variable_name).ok().unwrap_or_default();},
+                );
+            }
+        };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_parse_http() {
+        let req = r####"
 ### request_baidu
 GET https://www.baidu.com
 "####;
-    let http = parse_http(&req, &None);
-    assert_eq!(http.len(), 1);
-    let req = http.get(0).unwrap();
-    assert_eq!(req.name, "request_baidu");
-    assert_eq!(req.request.method, "GET");
+        let http = parse_http(&req, &None);
+        assert_eq!(http.len(), 1);
+        let req = http.get(0).unwrap();
+        assert_eq!(req.name, "request_baidu");
+        assert_eq!(req.request.method, "GET");
 
-    assert_eq!(
-        match req.request.url {
-            StrEnum::RawStr(url) => url,
-            StrEnum::Format(_) => "fmt",
-        },
-        "https://www.baidu.com"
-    );
+        assert_eq!(
+            match req.request.url {
+                StrEnum::RawStr(url) => url,
+                StrEnum::Format(_) => "fmt",
+            },
+            "https://www.baidu.com"
+        );
 
-    let req = r####"
+        let req = r####"
 ###//comment
 ### request_baidu
 GET https://www.baidu.com/s?kw=xxx
 User-Agent: reqwest
 token: xxxx1234ABCD
 "####;
-    let http = parse_http(&req, &None);
-    assert_eq!(http.len(), 1);
-    let req = http.get(0).unwrap();
-    assert_eq!(req.name, "request_baidu");
-    let request = &req.request;
-    assert_eq!(request.method, "GET");
-    assert_eq!(
-        match request
-            .headers
-            .get("User-Agent")
-            .expect("User-Agent not exists")
-        {
-            StrEnum::RawStr(agent) => agent,
-            StrEnum::Format(_) => "fmt",
-        },
-        "reqwest"
-    );
-    assert_eq!(
-        match request.headers.get("token").expect("token not exists") {
-            StrEnum::RawStr(agent) => agent,
-            StrEnum::Format(_) => "fmt",
-        },
-        "xxxx1234ABCD"
-    );
+        let http = parse_http(&req, &None);
+        assert_eq!(http.len(), 1);
+        let req = http.get(0).unwrap();
+        assert_eq!(req.name, "request_baidu");
+        let request = &req.request;
+        assert_eq!(request.method, "GET");
+        assert_eq!(
+            match request
+                .headers
+                .get("User-Agent")
+                .expect("User-Agent not exists")
+            {
+                StrEnum::RawStr(agent) => agent,
+                StrEnum::Format(_) => "fmt",
+            },
+            "reqwest"
+        );
+        assert_eq!(
+            match request.headers.get("token").expect("token not exists") {
+                StrEnum::RawStr(agent) => agent,
+                StrEnum::Format(_) => "fmt",
+            },
+            "xxxx1234ABCD"
+        );
 
-    let req = r####"
+        let req = r####"
 ###//comment
 ### request_baidu
 GET https://www.baidu.com/s?kw=xxx
@@ -380,38 +529,74 @@ Content-Type:   application/json
 
 {"body":"msg"}
 "####;
-    let http = parse_http(&req, &None);
-    assert_eq!(http.len(), 1);
-    let req = http.get(0).unwrap();
-    assert_eq!(req.name, "request_baidu");
-    let request = &req.request;
-    assert_eq!(request.method, "GET");
-    let headers = &request.headers;
-    assert_eq!(
-        match headers.get("User-Agent").expect("User-Agent not exists") {
-            StrEnum::RawStr(agent) => agent,
-            StrEnum::Format(_) => "fmt",
-        },
-        "reqwest"
-    );
-    assert_eq!(
-        match headers
-            .get("Content-Type")
-            .expect("Content-Type not exists")
-        {
-            StrEnum::RawStr(agent) => agent,
-            StrEnum::Format(_) => "fmt",
-        },
-        "application/json"
-    );
+        let http = parse_http(&req, &None);
+        assert_eq!(http.len(), 1);
+        let req = http.get(0).unwrap();
+        assert_eq!(req.name, "request_baidu");
+        let request = &req.request;
+        assert_eq!(request.method, "GET");
+        let headers = &request.headers;
+        assert_eq!(
+            match headers.get("User-Agent").expect("User-Agent not exists") {
+                StrEnum::RawStr(agent) => agent,
+                StrEnum::Format(_) => "fmt",
+            },
+            "reqwest"
+        );
+        assert_eq!(
+            match headers
+                .get("Content-Type")
+                .expect("Content-Type not exists")
+            {
+                StrEnum::RawStr(agent) => agent,
+                StrEnum::Format(_) => "fmt",
+            },
+            "application/json"
+        );
 
-    let body = request.body.clone();
-    assert_eq!(
-        match body.clone().expect("body not exists") {
-            StrEnum::RawStr(body) => body,
-            StrEnum::Format(_) => "fmt",
-        },
-        r#"{"body":"msg"}
+        let body = request.body.clone();
+        assert_eq!(
+            match body.clone().expect("body not exists") {
+                StrEnum::RawStr(body) => body,
+                StrEnum::Format(_) => "fmt",
+            },
+            r#"{"body":"msg"}
 "#
-    )
+        )
+    }
+
+    #[test]
+    fn test_parse_and_substitute() {
+        let input = r#####"
+@hostname = api.example.com
+@port = 8080
+@host = {{hostname}}:{{port}}
+@contentType = application/json
+
+###
+POST https://{{host}}/verify-otp HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+    "username": "alice",
+    "otp": "123456"
+}
+    "#####;
+
+        let output = parse_and_substitute(input);
+        assert_eq!(
+            output.trim(),
+            r#####"
+###
+POST https://api.example.com:8080/verify-otp HTTP/1.1
+Content-Type: application/json
+
+{
+    "username": "alice",
+    "otp": "123456"
+}
+        "#####
+                .trim()
+        )
+    }
 }

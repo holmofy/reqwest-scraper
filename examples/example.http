@@ -1,18 +1,24 @@
-### course_set_list_all
-GET https://tiku.fenbi.com/api/xingce/course_set_list_all
+@host=tiku.fenbi.com
+@phone=18720232389
+@password=101010
 
-### courses
-GET https://tiku.fenbi.com/api/jinrong/courses
+### @course_set_list_all
+GET https://{{host}}/api/xingce/course_set_list_all
+
+###     courses
+GET https://{{host}}/api/jinrong/courses
 
 ### papers
-GET https://tiku.fenbi.com/api/xingce/papers/?toPage=0&pageSize={page_size:u32}&app=web&kav=100&av=100&hav=100&version=3.0.0.0
+GET https://{{host}}/api/xingce/papers/?toPage=0&pageSize={{page_size:u32}}&app=web&kav=100&av=100&hav=100&version=3.0.0.0
 
-### login
+### @login
 POST https://login.fenbi.com/api/users/loginV2?app=web&kav=12&av=80&version=3.0.0.0
 Accept: application/json, text/plain, */*
 Connection: keep-alive
 Content-Type: application/x-www-form-urlencoded;charset=UTF-8
 Origin: https://www.fenbi.com
 Referer: https://www.fenbi.com/
+Token: {{$TOKEN_NO_DEFAULT}}
+Authorization: {{$TOKEN:xxxxxxxx}}
 
-phone={phone}&password={password}
+phone={{phone}}&password={{password}}
