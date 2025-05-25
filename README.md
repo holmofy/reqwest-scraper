@@ -12,6 +12,7 @@ Extends [reqwest](https://github.com/seanmonstar/reqwest) to support multiple we
 * [x] Select elements in HTML response using [CSS selector](#css-selector)
 * [x] Evalute the value in HTML response using [xpath expression](#xpath)
 * [x] [Derive macro extract](#macros)
+* [x] `include_http` macros include Raw Http Request like [rest-client](https://github.com/Huachao/vscode-restclient)
 
 ### Start Guide
 
