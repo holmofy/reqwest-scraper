@@ -40,3 +40,4 @@ middleware = ["reqwest-scraper-macros/middleware", "reqwest-middleware"]
 [dev-dependencies]
 anyhow = { version = "1.0", features = ["backtrace"] }
 tokio = { version = "1", features = ["full"] }
+reqwest-middleware = { version = "0.4" }
