@@ -1,8 +1,8 @@
-use reqwest::Client;
+use reqwest_middleware::ClientWithMiddleware;
 use reqwest_scraper::{error::Result, include_http, ScraperResponse};
 
-fn client() -> Client {
-    Client::new()
+fn client() -> ClientWithMiddleware {
+    ClientWithMiddleware::default()
 }
 
 include_http!("examples/example.http", client, {phone="18720232389", password="101010"});

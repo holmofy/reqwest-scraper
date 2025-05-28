@@ -44,6 +44,11 @@ pub enum ScraperError {
     #[error(transparent)]
     IOError(#[from] reqwest::Error),
 
+    /// IO Error
+    #[cfg(feature = "middleware")]
+    #[error(transparent)]
+    MiddlewareIOError(#[from] reqwest_middleware::Error),
+
     /// Http response failed
     #[error("http request for \"{0}\" error code:{1}, body text:{2}")]
     HttpError(String, u16, String),

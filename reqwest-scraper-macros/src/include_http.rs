@@ -321,17 +321,36 @@ impl<'f, 'c> ToTokens for HttpRequestFn<'f, 'c> {
         let method_name_ident = Ident::new(name, Span::call_site());
         let args = request.collect_args();
         let envs = request.collect_envs();
-        let client = match client_supplier {
-            None => quote! {let client = reqwest::Client::new();},
-            Some(supplier) => quote! {let client = #supplier();},
-        };
-        tokens.extend(quote! {
-            pub async fn #method_name_ident(#(#args),*) -> ::std::result::Result<::reqwest::Response, ::reqwest::Error> {
-                #client
-                #(#envs)*
-                #request
-            }
-        });
+        #[cfg(feature = "middleware")]
+        {
+            let client = match client_supplier {
+                None => {
+                    quote! {let client = ::reqwest_middleware::ClientWithMiddleware::default();}
+                }
+                Some(supplier) => quote! {let client = #supplier();},
+            };
+            tokens.extend(quote! {
+                pub async fn #method_name_ident(#(#args),*) -> ::std::result::Result<::reqwest::Response, ::reqwest_middleware::Error> {
+                    #client
+                    #(#envs)*
+                    #request
+                }
+            });
+        }
+        #[cfg(not(feature = "middleware"))]
+        {
+            let client = match client_supplier {
+                None => quote! {let client = ::reqwest::Client::default();},
+                Some(supplier) => quote! {let client = #supplier();},
+            };
+            tokens.extend(quote! {
+                pub async fn #method_name_ident(#(#args),*) -> ::std::result::Result<::reqwest::Response, ::reqwest::Error> {
+                    #client
+                    #(#envs)*
+                    #request
+                }
+            });
+        }
     }
 }
 

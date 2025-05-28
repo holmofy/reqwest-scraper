@@ -1,11 +1,15 @@
 [package]
 name = "reqwest-scraper-macros"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2021"
 description = "Web scraping integration with reqwest"
 license = "MIT"
 authors = ["holmofy"]
 repository = "https://github.com/holmofy/reqwest-scraper"
+
+[features]
+default = []
+middleware = []
 
 [lib]
 name = "reqwest_scraper_macros"
