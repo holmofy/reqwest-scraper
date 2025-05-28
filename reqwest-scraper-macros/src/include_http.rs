@@ -373,7 +373,7 @@ impl<'f> StrEnum<'f> {
                 let mut last_match = 0;
                 for caps in VARIABLE_RE.captures_iter(string) {
                     let matched = caps.get(0).unwrap();
-                    match caps.name("env") {
+                    let name = match caps.name("env") {
                         Some(_) => {
                             let name = caps.name("ident").unwrap().as_str();
                             let default_value = caps.name("ty").map(|ty| ty.as_str());
@@ -381,20 +381,22 @@ impl<'f> StrEnum<'f> {
                                 name,
                                 default_value,
                             });
+                            name.to_lowercase()
                         }
                         None => {
                             let name = caps.name("ident").unwrap().as_str();
                             let ty = caps.name("ty").map(|ty| ty.as_str());
-                            // format!转义，要保留原始{}，得{{}}
-                            fmt.push_str(
-                                &string[last_match..matched.start()]
-                                    .replace("{", "{{")
-                                    .replace("}", "}}"),
-                            );
-                            fmt.push_str(&format!(r"{{{name}}}"));
                             args.push(FormatArg { name, ty });
+                            name.to_string()
                         }
-                    }
+                    };
+                    // format!转义，要保留原始{}，得{{}}
+                    fmt.push_str(
+                        &string[last_match..matched.start()]
+                            .replace("{", "{{")
+                            .replace("}", "}}"),
+                    );
+                    fmt.push_str(&format!(r"{{{name}}}"));
                     last_match = matched.end();
                 }
                 fmt.push_str(&string[last_match..].replace("{", "{{").replace("}", "}}"));
@@ -442,6 +444,12 @@ struct EnvVariable<'f> {
     default_value: Option<&'f str>,
 }
 
+impl<'f> EnvVariable<'f> {
+    fn lowercase_name(&self) -> String {
+        self.name.to_lowercase()
+    }
+}
+
 impl<'f> ToTokens for EnvVariable<'f> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let Self {
@@ -449,7 +457,7 @@ impl<'f> ToTokens for EnvVariable<'f> {
             default_value,
         } = self;
         let variable_name = name;
-        let name = Ident::new(&name.to_lowercase(), Span::call_site());
+        let name = Ident::new(&self.lowercase_name(), Span::call_site());
         match default_value {
             Some(default_value) => {
                 tokens.extend(quote! {
