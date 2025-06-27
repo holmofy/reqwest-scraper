@@ -6,6 +6,11 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum ScraperError {
     /// JsonPath Error
+    #[cfg(feature = "json")]
+    #[error(transparent)]
+    SerdeJsonError(#[from] serde_path_to_error::Error<serde_json::Error>),
+
+    /// JsonPath Error
     #[cfg(feature = "jsonpath")]
     #[error(transparent)]
     JsonPathError(#[from] jsonpath_lib::JsonPathError),
