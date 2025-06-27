@@ -91,8 +91,8 @@ impl ScraperResponse for Response {
 
     #[cfg(feature = "json")]
     async fn json_with_path_to_err<T: DeserializeOwned>(self) -> Result<T> {
-        let json = self.text().await?;
-        let mut deserializer = serde_json::Deserializer::from_str(&json);
+        let full = self.bytes().await?;
+        let mut deserializer = serde_json::Deserializer::from_slice(&full);
         Ok(serde_path_to_error::deserialize(&mut deserializer)?)
     }
 
