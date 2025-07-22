@@ -23,8 +23,10 @@ use encoding_rs::{Encoding, UTF_8};
 use error::ScraperError;
 use mime::Mime;
 pub use reqwest::Response;
+#[cfg(feature = "json")]
+use serde::de::DeserializeOwned;
 
-pub use reqwest_scraper_macros::{FromCssSelector, FromXPath, include_http};
+pub use reqwest_scraper_macros::{include_http, FromCssSelector, FromXPath};
 
 /// Use XPath to extract the HTML response body into the derived struct
 #[cfg(feature = "xpath")]
@@ -53,6 +55,11 @@ pub trait ScraperResponse {
     #[cfg(feature = "jsonpath")]
     async fn jsonpath(self) -> Result<Json>;
 
+    /// works with any existing Serde Deserializer and exposes the chain of field names leading to the error.
+    /// * https://crates.io/crates/serde_path_to_error
+    #[cfg(feature = "json")]
+    async fn json_with_path_to_err<T: DeserializeOwned>(self) -> Result<T>;
+
     /// Use CSS selector to select the response body
     #[cfg(feature = "css_selector")]
     async fn css_selector(self) -> Result<Html>;
@@ -80,6 +87,13 @@ impl ScraperResponse for Response {
             let response = self.text().await?;
             Err(ScraperError::HttpError(url, status_code, response))
         }
+    }
+
+    #[cfg(feature = "json")]
+    async fn json_with_path_to_err<T: DeserializeOwned>(self) -> Result<T> {
+        let full = self.bytes().await?;
+        let mut deserializer = serde_json::Deserializer::from_slice(&full);
+        Ok(serde_path_to_error::deserialize(&mut deserializer)?)
     }
 
     #[cfg(feature = "css_selector")]
