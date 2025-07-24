@@ -11,6 +11,9 @@ pub mod jsonpath;
 #[cfg(feature = "xpath")]
 pub mod xpath;
 
+#[cfg(feature = "jsonpath")]
+use std::future::Future;
+
 #[cfg(feature = "css_selector")]
 use crate::css_selector::Html;
 use crate::error::Result;
@@ -18,7 +21,6 @@ use crate::error::Result;
 use crate::jsonpath::Json;
 #[cfg(feature = "xpath")]
 use crate::xpath::XHtml;
-use async_trait::async_trait;
 use encoding_rs::{Encoding, UTF_8};
 use error::ScraperError;
 use mime::Mime;
@@ -49,32 +51,30 @@ pub trait FromCssSelector {
 }
 
 /// Support extended traits of jsonpath, css selector, and xpath
-#[async_trait]
 pub trait ScraperResponse {
     /// Use jsonpath to select the response body
     #[cfg(feature = "jsonpath")]
-    async fn jsonpath(self) -> Result<Json>;
+    fn jsonpath(self) -> impl Future<Output = Result<Json>>;
 
     /// works with any existing Serde Deserializer and exposes the chain of field names leading to the error.
     /// * https://crates.io/crates/serde_path_to_error
     #[cfg(feature = "json")]
-    async fn json_with_path_to_err<T: DeserializeOwned>(self) -> Result<T>;
+    fn json_with_path_to_err<T: DeserializeOwned>(self) -> impl Future<Output = Result<T>>;
 
     /// Use CSS selector to select the response body
     #[cfg(feature = "css_selector")]
-    async fn css_selector(self) -> Result<Html>;
+    fn css_selector(self) -> impl Future<Output = Result<Html>>;
 
     /// Use XPath to select the response body
     #[cfg(feature = "xpath")]
-    async fn xpath(self) -> Result<XHtml>;
+    fn xpath(self) -> impl Future<Output = Result<XHtml>>;
 
     /// If there is no Encoding method in the Content-Type of the response header,
     /// try to read the meta information in the HTML to obtain the encoding.
     /// eg: <meta charset="gb2312">
-    async fn html(self) -> Result<String>;
+    fn html(self) -> impl Future<Output = Result<String>>;
 }
 
-#[async_trait]
 impl ScraperResponse for Response {
     #[cfg(feature = "jsonpath")]
     async fn jsonpath(self) -> Result<Json> {
