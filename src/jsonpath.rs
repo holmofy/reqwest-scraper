@@ -72,6 +72,7 @@ impl Json {
     }
 }
 
+#[cfg(test)]
 mod tests {
 
     #[test]

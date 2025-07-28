@@ -171,6 +171,7 @@ impl<'a> SelectItem<'a> {
     }
 }
 
+#[cfg(test)]
 mod tests {
 
     #[test]

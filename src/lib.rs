@@ -24,6 +24,7 @@ use crate::xpath::XHtml;
 use encoding_rs::{Encoding, UTF_8};
 use error::ScraperError;
 use mime::Mime;
+use regex::Regex;
 pub use reqwest::Response;
 #[cfg(feature = "json")]
 use serde::de::DeserializeOwned;
@@ -155,29 +156,24 @@ impl ScraperResponse for Response {
 }
 
 fn extract_charset(html: &str) -> Option<String> {
-    let meta_start = "<meta charset=";
-    if let Some(start_index) = html.find(meta_start) {
-        let start = start_index + meta_start.len();
+    // 优先匹配 <meta charset="UTF-8"> 或 <meta charset='UTF-8'>
+    let re1 = Regex::new(r#"(?i)<meta\s+[^>]*charset=['"]?([a-zA-Z0-9\-_]+)"#).unwrap();
+    if let Some(cap) = re1.captures(html) {
+        return Some(cap[1].to_string());
+    }
 
-        // 查找第一个引号，确定是单引号还是双引号
-        let quote_char = html[start..].chars().next()?;
-
-        // 如果不是引号字符，返回None
-        if quote_char != '"' && quote_char != '\'' {
-            return None;
-        }
-
-        // 查找下一个引号，确定编码值的结束位置
-        let end_quote = html[start + 1..].find(quote_char)? + start + 1;
-
-        // 提取编码值
-        let charset = &html[start + 1..end_quote];
-        return Some(charset.to_string());
+    // 兼容 HTML4/XHTML 写法
+    // 匹配 <meta http-equiv="Content-Type" content="text/html; charset=GB2312">
+    // 支持属性乱序、单双引号
+    let re2 = Regex::new(r#"(?i)<meta\s+[^>]*http-equiv=['"]?content-type['"]?[^>]*content=['"][^>]*charset=([a-zA-Z0-9\-_]+)"#).unwrap();
+    if let Some(cap) = re2.captures(html) {
+        return Some(cap[1].to_string());
     }
 
     None
 }
 
+#[cfg(test)]
 mod tests {
 
     #[test]
@@ -212,5 +208,35 @@ mod tests {
         let cs = extract_charset(html);
         assert!(cs.is_some());
         assert_eq!(cs.unwrap(), "gb2312");
+
+        let html = r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta http-equiv="Content-Type" content="text/html; charset=GB2312">
+            <title>Example</title>
+        </head>
+        <body><p>Hello, world!</p></body>
+        </html>
+        "#;
+
+        let cs = extract_charset(html);
+        assert!(cs.is_some());
+        assert_eq!(cs.unwrap(), "GB2312");
+
+        let html = r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta content='text/html; charset=gbk' http-equiv="Content-Type">
+            <title>Example</title>
+        </head>
+        <body><p>Hello, world!</p></body>
+        </html>
+        "#;
+
+        let cs = extract_charset(html);
+        assert!(cs.is_some());
+        assert_eq!(cs.unwrap(), "gbk");
     }
 }
